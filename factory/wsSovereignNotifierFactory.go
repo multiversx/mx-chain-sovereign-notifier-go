@@ -7,7 +7,8 @@ import (
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process/wsclient"
 )
 
-func CreatSovereignNotifier(cfg config.Config) (process.WSClient, error) {
+// CreatWsSovereignNotifier will create a ws sovereign shard notifier
+func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 	sovereignNotifier, err := notifier.NewSovereignNotifier(cfg)
 	if err != nil {
 		return nil, err

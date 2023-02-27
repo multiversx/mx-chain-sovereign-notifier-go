@@ -6,6 +6,7 @@ type client struct {
 	notifier process.SovereignNotifier
 }
 
+// NewWsClient will create a ws client to receive data from an observer/light client
 func NewWsClient(notifier process.SovereignNotifier) (*client, error) {
 	if notifier == nil {
 		return nil, errNilSovereignNotifier
@@ -16,10 +17,12 @@ func NewWsClient(notifier process.SovereignNotifier) (*client, error) {
 	}, nil
 }
 
+// Start will start the client listening ws process
 func (c *client) Start() {
 
 }
 
+// Close will close the underlying ws connection
 func (c *client) Close() {
 
 }

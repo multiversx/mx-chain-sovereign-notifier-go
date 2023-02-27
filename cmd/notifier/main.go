@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/multiversx/mx-chain-core-go/core"
-	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/core/closing"
 	logger "github.com/multiversx/mx-chain-logger-go"
 	"github.com/multiversx/mx-chain-logger-go/file"
@@ -17,8 +16,15 @@ import (
 	"github.com/urfave/cli"
 )
 
-var (
-	log = logger.GetOrCreate("mx-chain-sovereign-notifier")
+var log = logger.GetOrCreate("mx-chain-sovereign-notifier")
+
+const (
+	configPath = "config/config.toml"
+
+	logsPath       = "logs"
+	logFilePrefix  = "sovereign-notifier"
+	logLifeSpanSec = 432000 // 5 days
+	logLifeSpanMb  = 1024   // 1 GB
 )
 
 func main() {
@@ -49,87 +55,66 @@ func main() {
 }
 
 func startNotifier(ctx *cli.Context) error {
-	cfg, err := loadMainConfig("config/config.toml")
+	cfg, err := loadConfig(configPath)
 	if err != nil {
 		return err
 	}
 
-	fileLogging, err := initializeLogger(ctx, cfg)
+	err = initializeLogger(ctx)
 	if err != nil {
 		return err
 	}
 
-	wsClient, err := factory.CreatSovereignNotifier(cfg)
+	var logFile closing.Closer
+	withLogFile := ctx.GlobalBool(logSaveFile.Name)
+	if withLogFile {
+		logFile, err = createLogger()
+		if err != nil {
+			return err
+		}
+	}
+
+	wsClient, err := factory.CreatWsSovereignNotifier(cfg)
 	if err != nil {
-		log.Error("cannot create ws indexer", "error", err)
+		return fmt.Errorf("cannot create sovereign notifier, error: %w", err)
 	}
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 
+	log.Info("starting ws client...")
+
 	go wsClient.Start()
 
 	<-interrupt
 	log.Info("closing app at user's signal")
+
 	wsClient.Close()
-	if !check.IfNilReflect(fileLogging) {
-		err = fileLogging.Close()
+	if withLogFile {
+		err = logFile.Close()
 		log.LogIfError(err)
 	}
 	return nil
 }
 
-func loadMainConfig(filepath string) (config.Config, error) {
+func loadConfig(filepath string) (config.Config, error) {
 	cfg := config.Config{}
 	err := core.LoadTomlFile(&cfg, filepath)
 
-	log.Info("cfg", "addr", cfg.SubscribedAddresses)
+	log.Info("loaded config", "path", configPath)
 
 	return cfg, err
 }
 
-func initializeLogger(ctx *cli.Context, cfg config.Config) (closing.Closer, error) {
+func initializeLogger(ctx *cli.Context) error {
 	logLevelFlagValue := ctx.GlobalString(logLevel.Name)
 	err := logger.SetLogLevel(logLevelFlagValue)
 	if err != nil {
-		return nil, err
-	}
-
-	withLogFile := ctx.GlobalBool(logSaveFile.Name)
-	if !withLogFile {
-		return nil, nil
-	}
-
-	workingDir, err := os.Getwd()
-	if err != nil {
-		log.LogIfError(err)
-		workingDir = ""
-	}
-
-	fileLogging, err := file.NewFileLogging(file.ArgsFileLogging{
-		WorkingDir:      workingDir,
-		DefaultLogsPath: "logs",
-		LogFilePrefix:   "sovereign-notifier",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("%w creating a log file", err)
-	}
-
-	err = fileLogging.ChangeFileLifeSpan(
-		time.Second*time.Duration(432000),
-		uint64(1024),
-	)
-	if err != nil {
-		return nil, err
+		return err
 	}
 
 	disableAnsi := ctx.GlobalBool(disableAnsiColor.Name)
-	err = removeANSIColorsForLoggerIfNeeded(disableAnsi)
-	if err != nil {
-		return nil, err
-	}
-
-	return fileLogging, nil
+	return removeANSIColorsForLoggerIfNeeded(disableAnsi)
 }
 
 func removeANSIColorsForLoggerIfNeeded(disableAnsi bool) error {
@@ -143,4 +128,29 @@ func removeANSIColorsForLoggerIfNeeded(disableAnsi bool) error {
 	}
 
 	return logger.AddLogObserver(os.Stdout, &logger.PlainFormatter{})
+}
+
+func createLogger() (closing.Closer, error) {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		log.LogIfError(err)
+		workingDir = ""
+	}
+
+	argsLogger := file.ArgsFileLogging{
+		WorkingDir:      workingDir,
+		DefaultLogsPath: logsPath,
+		LogFilePrefix:   logFilePrefix,
+	}
+	fileLogging, err := file.NewFileLogging(argsLogger)
+	if err != nil {
+		return nil, fmt.Errorf("%w creating log file", err)
+	}
+
+	err = fileLogging.ChangeFileLifeSpan(time.Second*time.Duration(logLifeSpanSec), logLifeSpanMb)
+	if err != nil {
+		return nil, err
+	}
+
+	return fileLogging, nil
 }
