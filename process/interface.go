@@ -1,5 +1,6 @@
 package process
 
+// SovereignNotifier defines what a sovereign notifier should do
 type SovereignNotifier interface {
 }
 

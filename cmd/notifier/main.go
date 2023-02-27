@@ -133,7 +133,7 @@ func removeANSIColorsForLoggerIfNeeded(disableAnsi bool) error {
 func createLogger() (closing.Closer, error) {
 	workingDir, err := os.Getwd()
 	if err != nil {
-		log.LogIfError(err)
+		log.Error("error getting working directory when trying to create logger file", "error", err)
 		workingDir = ""
 	}
 
