@@ -2,18 +2,18 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/core/closing"
 	logger "github.com/multiversx/mx-chain-logger-go"
 	"github.com/multiversx/mx-chain-logger-go/file"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
-	"github.com/pelletier/go-toml"
+	"github.com/multiversx/mx-chain-sovereign-notifier-go/factory"
 	"github.com/urfave/cli"
 )
 
@@ -59,19 +59,19 @@ func startNotifier(ctx *cli.Context) error {
 		return err
 	}
 
-	//wsClient, err := factory.CreateWsIndexer(cfg, nil)
-	//if err != nil {
-	//	log.Error("cannot create ws indexer", "error", err)
-	//}
+	wsClient, err := factory.CreatSovereignNotifier(cfg)
+	if err != nil {
+		log.Error("cannot create ws indexer", "error", err)
+	}
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	//go wsClient.Start()
+	go wsClient.Start()
 
 	<-interrupt
 	log.Info("closing app at user's signal")
-	//wsClient.Close()
+	wsClient.Close()
 	if !check.IfNilReflect(fileLogging) {
 		err = fileLogging.Close()
 		log.LogIfError(err)
@@ -80,19 +80,8 @@ func startNotifier(ctx *cli.Context) error {
 }
 
 func loadMainConfig(filepath string) (config.Config, error) {
-	//cfg := config.Config{}
-	//err := core.LoadTomlFile(&cfg, filepath)
-
-	tomlBytes, err := ioutil.ReadFile(filepath)
-	if err != nil {
-		return config.Config{}, err
-	}
-
-	var cfg config.Config
-	err = toml.Unmarshal(tomlBytes, &cfg)
-	if err != nil {
-		return config.Config{}, err
-	}
+	cfg := config.Config{}
+	err := core.LoadTomlFile(&cfg, filepath)
 
 	log.Info("cfg", "addr", cfg.SubscribedAddresses)
 
