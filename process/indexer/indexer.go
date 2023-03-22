@@ -14,14 +14,16 @@ func NewIndexer(notifier process.SovereignNotifier) (process.Indexer, error) {
 		return nil, errNilSovereignNotifier
 	}
 
-	return &indexer{}, nil
+	return &indexer{
+		notifier: notifier,
+	}, nil
 }
 
-func (i *indexer) SaveBlock(outportBlock *outport.OutportBlock) error {
+func (i *indexer) SaveBlock(_ *outport.OutportBlock) error {
 	return nil
 }
 
-func (i *indexer) FinalizedBlock(finalizedBlock *outport.FinalizedBlock) error {
+func (i *indexer) FinalizedBlock(_ *outport.FinalizedBlock) error {
 	return nil
 }
 

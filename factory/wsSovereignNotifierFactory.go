@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"github.com/multiversx/mx-chain-core-go/marshal/factory"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process/indexer"
@@ -20,7 +21,12 @@ func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 		return nil, err
 	}
 
-	operationHandler, err := indexer.NewOperationHandler(dataIndexer, nil)
+	marshaller, err := factory.NewMarshalizer(cfg.WebSocketConfig.MarshallerType)
+	if err != nil {
+		return nil, err
+	}
+
+	operationHandler, err := indexer.NewOperationHandler(dataIndexer, marshaller)
 	if err != nil {
 		return nil, err
 	}
