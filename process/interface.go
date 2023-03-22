@@ -15,14 +15,17 @@ type WSClient interface {
 	Close()
 }
 
+// Indexer should handle node indexer events
 type Indexer interface {
 	SaveBlock(outportBlock *outport.OutportBlock) error
 	FinalizedBlock(finalizedBlock *outport.FinalizedBlock) error
 	IsInterfaceNil() bool
 }
 
+// HandlerFunc defines the func responsible for handling received payload data from node
 type HandlerFunc func(d []byte) error
 
+// OperationHandler defines a HandlerFunc for each indexer operation type from node
 type OperationHandler interface {
 	GetOperationsMap() map[data.OperationType]HandlerFunc
 }

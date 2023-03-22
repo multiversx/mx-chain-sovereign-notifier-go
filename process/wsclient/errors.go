@@ -2,4 +2,4 @@ package wsclient
 
 import "errors"
 
-var errNilSovereignNotifier = errors.New("nil sovereign notifier provided")
+var errNilOperationHandler = errors.New("nil operation handler provided")

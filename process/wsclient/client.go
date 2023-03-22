@@ -3,17 +3,17 @@ package wsclient
 import "github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 
 type client struct {
-	notifier process.SovereignNotifier
+	operationHandler process.OperationHandler
 }
 
 // NewWsClient will create a ws client to receive data from an observer/light client
-func NewWsClient(notifier process.SovereignNotifier) (*client, error) {
-	if notifier == nil {
-		return nil, errNilSovereignNotifier
+func NewWsClient(operationHandler process.OperationHandler) (*client, error) {
+	if operationHandler == nil {
+		return nil, errNilOperationHandler
 	}
 
 	return &client{
-		notifier: notifier,
+		operationHandler: operationHandler,
 	}, nil
 }
 

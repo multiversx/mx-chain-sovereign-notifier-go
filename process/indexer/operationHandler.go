@@ -1,7 +1,7 @@
 package indexer
 
 import (
-	"github.com/ElrondNetwork/elrond-go-core/core/check"
+	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/data"
@@ -13,6 +13,7 @@ type operationHandler struct {
 	marshaller marshal.Marshalizer
 }
 
+// NewOperationHandler creates a new operation handler
 func NewOperationHandler(indexer process.Indexer, marshaller marshal.Marshalizer) (process.OperationHandler, error) {
 	if check.IfNil(marshaller) {
 		return nil, errNilMarshaller

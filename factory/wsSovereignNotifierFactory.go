@@ -3,6 +3,7 @@ package factory
 import (
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
+	"github.com/multiversx/mx-chain-sovereign-notifier-go/process/indexer"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process/notifier"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process/wsclient"
 )
@@ -14,5 +15,15 @@ func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 		return nil, err
 	}
 
-	return wsclient.NewWsClient(sovereignNotifier)
+	dataIndexer, err := indexer.NewIndexer(sovereignNotifier)
+	if err != nil {
+		return nil, err
+	}
+
+	operationHandler, err := indexer.NewOperationHandler(dataIndexer, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return wsclient.NewWsClient(operationHandler)
 }
