@@ -1,6 +1,6 @@
 subscribed_addresses = ["erd1", "erd1"]
 
 [web_socket]
-    url = "localhost:10005"
-    # possible values: json, gogo protobuf. Should be compatible with mx-chain-node outport driver config
+    url = "localhost:10001"
+    # Possible values: json, gogo protobuf. Should be compatible with mx-chain-node outport driver config
     marshaller_type = "gogo protobuf"
