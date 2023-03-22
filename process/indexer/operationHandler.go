@@ -9,8 +9,9 @@ import (
 )
 
 type operationHandler struct {
-	indexer    process.Indexer
-	marshaller marshal.Marshalizer
+	indexer           process.Indexer
+	marshaller        marshal.Marshalizer
+	operationHandlers map[data.OperationType]process.HandlerFunc
 }
 
 // NewOperationHandler creates a new operation handler
@@ -22,23 +23,28 @@ func NewOperationHandler(indexer process.Indexer, marshaller marshal.Marshalizer
 		return nil, errNilIndexer
 	}
 
-	return &operationHandler{
+	opHandler := &operationHandler{
 		indexer:    indexer,
 		marshaller: marshaller,
-	}, nil
+	}
+
+	opHandler.operationHandlers = map[data.OperationType]process.HandlerFunc{
+		data.OperationSaveBlock:             opHandler.saveBlock,
+		data.OperationRevertIndexedBlock:    dummyHandler,
+		data.OperationSaveRoundsInfo:        dummyHandler,
+		data.OperationSaveValidatorsRating:  dummyHandler,
+		data.OperationSaveValidatorsPubKeys: dummyHandler,
+		data.OperationSaveAccounts:          dummyHandler,
+		data.OperationFinalizedBlock:        opHandler.finalizedBlock,
+	}
+
+	return opHandler, nil
 }
 
-// GetOperationsMap returns the map with all the operations that will index data
-func (oh *operationHandler) GetOperationsMap() map[data.OperationType]process.HandlerFunc {
-	return map[data.OperationType]process.HandlerFunc{
-		data.OperationSaveBlock:             oh.saveBlock,
-		data.OperationRevertIndexedBlock:    oh.dummyHandler,
-		data.OperationSaveRoundsInfo:        oh.dummyHandler,
-		data.OperationSaveValidatorsRating:  oh.dummyHandler,
-		data.OperationSaveValidatorsPubKeys: oh.dummyHandler,
-		data.OperationSaveAccounts:          oh.dummyHandler,
-		data.OperationFinalizedBlock:        oh.finalizedBlock,
-	}
+// GetOperationHandler returns the handler func that will index data for requested operation type
+func (oh *operationHandler) GetOperationHandler(operation data.OperationType) (process.HandlerFunc, bool) {
+	handlerFunc, found := oh.operationHandlers[operation]
+	return handlerFunc, found
 }
 
 func (oh *operationHandler) saveBlock(marshalledData []byte) error {
@@ -51,7 +57,7 @@ func (oh *operationHandler) saveBlock(marshalledData []byte) error {
 	return oh.indexer.SaveBlock(outportBlock)
 }
 
-func (oh *operationHandler) dummyHandler(_ []byte) error {
+func dummyHandler(_ []byte) error {
 	return nil
 }
 

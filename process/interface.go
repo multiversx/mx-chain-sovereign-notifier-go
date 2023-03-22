@@ -23,9 +23,9 @@ type Indexer interface {
 }
 
 // HandlerFunc defines the func responsible for handling received payload data from node
-type HandlerFunc func(d []byte) error
+type HandlerFunc func(data []byte) error
 
 // OperationHandler defines a HandlerFunc for each indexer operation type from node
 type OperationHandler interface {
-	GetOperationsMap() map[data.OperationType]HandlerFunc
+	GetOperationHandler(operation data.OperationType) (HandlerFunc, bool)
 }
