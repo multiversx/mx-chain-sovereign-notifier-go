@@ -4,6 +4,7 @@ import (
 	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/marshal"
+	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/client"
 	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/data"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 )
@@ -11,11 +12,11 @@ import (
 type operationHandler struct {
 	indexer           process.Indexer
 	marshaller        marshal.Marshalizer
-	operationHandlers map[data.OperationType]process.HandlerFunc
+	operationHandlers map[data.OperationType]client.HandlerFunc
 }
 
 // NewOperationHandler creates a new operation handler
-func NewOperationHandler(indexer process.Indexer, marshaller marshal.Marshalizer) (process.OperationHandler, error) {
+func NewOperationHandler(indexer process.Indexer, marshaller marshal.Marshalizer) (client.OperationHandler, error) {
 	if check.IfNil(marshaller) {
 		return nil, errNilMarshaller
 	}
@@ -28,7 +29,7 @@ func NewOperationHandler(indexer process.Indexer, marshaller marshal.Marshalizer
 		marshaller: marshaller,
 	}
 
-	opHandler.operationHandlers = map[data.OperationType]process.HandlerFunc{
+	opHandler.operationHandlers = map[data.OperationType]client.HandlerFunc{
 		data.OperationSaveBlock:             opHandler.saveBlock,
 		data.OperationRevertIndexedBlock:    dummyHandler,
 		data.OperationSaveRoundsInfo:        dummyHandler,
@@ -42,7 +43,7 @@ func NewOperationHandler(indexer process.Indexer, marshaller marshal.Marshalizer
 }
 
 // GetOperationHandler returns the handler func that will index data for requested operation type, if exists
-func (oh *operationHandler) GetOperationHandler(operation data.OperationType) (process.HandlerFunc, bool) {
+func (oh *operationHandler) GetOperationHandler(operation data.OperationType) (client.HandlerFunc, bool) {
 	handlerFunc, found := oh.operationHandlers[operation]
 	return handlerFunc, found
 }
@@ -69,4 +70,9 @@ func (oh *operationHandler) finalizedBlock(marshalledData []byte) error {
 	}
 
 	return oh.indexer.FinalizedBlock(finalizedBlock)
+}
+
+// Close does nothing for now
+func (oh *operationHandler) Close() error {
+	return nil
 }
