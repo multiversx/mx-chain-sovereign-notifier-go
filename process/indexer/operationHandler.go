@@ -41,7 +41,7 @@ func NewOperationHandler(indexer process.Indexer, marshaller marshal.Marshalizer
 	return opHandler, nil
 }
 
-// GetOperationHandler returns the handler func that will index data for requested operation type
+// GetOperationHandler returns the handler func that will index data for requested operation type, if exists
 func (oh *operationHandler) GetOperationHandler(operation data.OperationType) (process.HandlerFunc, bool) {
 	handlerFunc, found := oh.operationHandlers[operation]
 	return handlerFunc, found
