@@ -10,4 +10,5 @@ type Config struct {
 type WebSocketConfig struct {
 	Url            string `toml:"url"`
 	MarshallerType string `toml:"marshaller_type"`
+	RetryDuration  uint32 `toml:"retry_duration"`
 }

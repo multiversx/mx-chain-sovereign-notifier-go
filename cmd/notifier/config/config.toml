@@ -4,3 +4,5 @@ subscribed_addresses = ["erd1", "erd1"]
     url = "localhost:10001"
     # Possible values: json, gogo protobuf. Should be compatible with mx-chain-node outport driver config
     marshaller_type = "gogo protobuf"
+    # Retry duration (receive/ send ack signal) in seconds
+    retry_duration = 5
