@@ -3,7 +3,7 @@ module github.com/multiversx/mx-chain-sovereign-notifier-go
 go 1.17
 
 require (
-	github.com/multiversx/mx-chain-core-go v1.2.1-0.20230324091615-f09a799ebc13
+	github.com/multiversx/mx-chain-core-go v1.2.1-0.20230324105818-08c11d782801
 	github.com/multiversx/mx-chain-logger-go v1.0.11
 	github.com/stretchr/testify v1.8.0
 	github.com/urfave/cli v1.22.9
