@@ -18,12 +18,12 @@ func NewLRUOutportBlockCache() *lruOutportBlockCache {
 	return &lruOutportBlockCache{}
 }
 
-func (lru *lruOutportBlockCache) Add(outportBlock *outport.OutportBlock) {
+func (lru *lruOutportBlockCache) Add(outportBlock *outport.OutportBlock) error {
 	lru.cacheMutex.Lock()
 	lru.cacheMutex.Unlock()
 
 	if outportBlock == nil || outportBlock.BlockData == nil {
-		return
+		return fmt.Errorf("nil outport block")
 	}
 
 	lru.tryEvictCache()
@@ -31,6 +31,8 @@ func (lru *lruOutportBlockCache) Add(outportBlock *outport.OutportBlock) {
 	headerHash := string(outportBlock.BlockData.HeaderHash)
 	lru.cache[headerHash] = outportBlock
 	lru.hashes = append(lru.hashes, headerHash)
+
+	return nil
 }
 
 func (lru *lruOutportBlockCache) tryEvictCache() {

@@ -1,6 +1,7 @@
 package notifier
 
 import (
+	"github.com/multiversx/mx-chain-core-go/data/outport"
 	logger "github.com/multiversx/mx-chain-logger-go"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
 )
@@ -23,4 +24,9 @@ func NewSovereignNotifier(config config.Config) (*sovereignNotifier, error) {
 	return &sovereignNotifier{
 		subscribedAddresses: addresses,
 	}, nil
+}
+
+// Notify will notify the sovereign nodes via p2p about the finalized block and incoming mb txs
+func (notifier *sovereignNotifier) Notify(_ *outport.OutportBlock) error {
+	return nil
 }
