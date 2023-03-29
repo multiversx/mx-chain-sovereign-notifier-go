@@ -2,11 +2,13 @@ package testscommon
 
 import "github.com/multiversx/mx-chain-core-go/data/outport"
 
+// IndexerStub -
 type IndexerStub struct {
 	SaveBlockCalled      func(outportBlock *outport.OutportBlock) error
 	FinalizedBlockCalled func(finalizedBlock *outport.FinalizedBlock) error
 }
 
+// SaveBlock -
 func (is *IndexerStub) SaveBlock(outportBlock *outport.OutportBlock) error {
 	if is.SaveBlockCalled != nil {
 		return is.SaveBlockCalled(outportBlock)
@@ -15,6 +17,7 @@ func (is *IndexerStub) SaveBlock(outportBlock *outport.OutportBlock) error {
 	return nil
 }
 
+// FinalizedBlock -
 func (is *IndexerStub) FinalizedBlock(finalizedBlock *outport.FinalizedBlock) error {
 	if is.FinalizedBlockCalled != nil {
 		return is.FinalizedBlockCalled(finalizedBlock)
@@ -23,6 +26,7 @@ func (is *IndexerStub) FinalizedBlock(finalizedBlock *outport.FinalizedBlock) er
 	return nil
 }
 
+// IsInterfaceNil -
 func (is *IndexerStub) IsInterfaceNil() bool {
 	return is == nil
 }
