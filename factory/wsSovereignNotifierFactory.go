@@ -34,7 +34,7 @@ func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 	argsWsClient := client.ArgsCreateWsClient{
 		Url:                cfg.WebSocketConfig.Url,
 		RetryDurationInSec: cfg.WebSocketConfig.RetryDuration,
-		BlockingAckOnError: false,
+		BlockingAckOnError: cfg.WebSocketConfig.BlockingAckOnError,
 		PayloadProcessor:   payloadProcessor,
 	}
 

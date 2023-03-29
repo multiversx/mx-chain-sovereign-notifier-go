@@ -1,7 +1,6 @@
 package indexer
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -128,6 +127,6 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 		payload := &data.PayloadData{OperationType: data.OperationTypeFromUint64(0xFFFFF)}
 		err := oh.ProcessPayload(payload)
 		require.True(t, strings.Contains(err.Error(), errOperationTypeInvalid.Error()))
-		require.True(t, strings.Contains(err.Error(), fmt.Sprintf("%s", payload.OperationType.String())))
+		require.True(t, strings.Contains(err.Error(), payload.OperationType.String()))
 	})
 }
