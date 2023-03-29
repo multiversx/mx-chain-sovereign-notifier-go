@@ -30,3 +30,7 @@ func NewSovereignNotifier(config config.Config) (*sovereignNotifier, error) {
 func (notifier *sovereignNotifier) Notify(_ *outport.OutportBlock) error {
 	return nil
 }
+
+func (notifier *sovereignNotifier) IsInterfaceNil() bool {
+	return notifier == nil
+}

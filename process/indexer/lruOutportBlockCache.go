@@ -20,7 +20,7 @@ func NewLRUOutportBlockCache() *lruOutportBlockCache {
 
 func (lru *lruOutportBlockCache) Add(outportBlock *outport.OutportBlock) error {
 	lru.cacheMutex.Lock()
-	lru.cacheMutex.Unlock()
+	defer lru.cacheMutex.Unlock()
 
 	if outportBlock == nil || outportBlock.BlockData == nil {
 		return fmt.Errorf("nil outport block")
@@ -48,10 +48,8 @@ func (lru *lruOutportBlockCache) tryEvictCache() {
 }
 
 func (lru *lruOutportBlockCache) Get(headerHash []byte) (*outport.OutportBlock, error) {
-	headerHashStr := string(headerHash)
-
 	lru.cacheMutex.RLock()
-	outportBlock, exists := lru.cache[headerHashStr]
+	outportBlock, exists := lru.cache[string(headerHash)]
 	lru.cacheMutex.RUnlock()
 
 	if !exists {
@@ -59,4 +57,8 @@ func (lru *lruOutportBlockCache) Get(headerHash []byte) (*outport.OutportBlock, 
 	}
 
 	return outportBlock, nil
+}
+
+func (lru *lruOutportBlockCache) IsInterfaceNil() bool {
+	return lru == nil
 }

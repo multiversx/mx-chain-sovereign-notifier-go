@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 )
@@ -13,10 +14,10 @@ type indexer struct {
 // NewIndexer creates an indexer which will internally save received blocks
 // and notify sovereign shards for each finalized block
 func NewIndexer(notifier process.SovereignNotifier, cache LRUOutportBlockCache) (process.Indexer, error) {
-	if notifier == nil {
+	if check.IfNil(notifier) {
 		return nil, errNilSovereignNotifier
 	}
-	if cache == nil {
+	if check.IfNil(cache) {
 		return nil, errNilOutportBlockCache
 	}
 
