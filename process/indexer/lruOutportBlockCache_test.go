@@ -2,7 +2,9 @@ package indexer
 
 import (
 	"encoding/hex"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -119,6 +121,8 @@ func TestLruOutportBlockCache_Add_Get(t *testing.T) {
 }
 
 func TestLruOutportBlockCache_AddErrorCases(t *testing.T) {
+	t.Parallel()
+
 	cache, _ := NewLRUOutportBlockCache(3)
 
 	err := cache.Add(nil)
@@ -142,4 +146,46 @@ func TestLruOutportBlockCache_AddErrorCases(t *testing.T) {
 	require.Equal(t, map[string]*outport.OutportBlock{
 		string(h1): bl1,
 	}, cache.cache)
+}
+
+func TestLruOutportBlockCache_AddConcurrentOperations(t *testing.T) {
+	t.Parallel()
+
+	cacheSize := uint32(10)
+	cache, _ := NewLRUOutportBlockCache(cacheSize)
+
+	n := 10000
+	wg1 := sync.WaitGroup{}
+	wg1.Add(1)
+
+	wg2 := sync.WaitGroup{}
+	wg2.Add(1)
+
+	go func() {
+		for i := 0; i < n; i++ {
+			hash := []byte(fmt.Sprintf("%d", i))
+			_ = cache.Add(&outport.OutportBlock{BlockData: &outport.BlockData{HeaderHash: hash}})
+		}
+		wg1.Done()
+	}()
+
+	go func() {
+		for i := 0; i < n; i++ {
+			hash := []byte(fmt.Sprintf("%d", i))
+			_, _ = cache.Get(hash)
+		}
+		wg2.Done()
+	}()
+
+	wg1.Wait()
+	wg2.Wait()
+
+	require.Len(t, cache.hashes, int(cacheSize))
+	require.Len(t, cache.cache, int(cacheSize))
+
+	for i := n - int(cacheSize); i < n; i++ {
+		hash := []byte(fmt.Sprintf("%d", i))
+		_, err := cache.Get(hash)
+		require.Nil(t, err)
+	}
 }
