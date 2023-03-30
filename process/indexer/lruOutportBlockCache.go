@@ -15,6 +15,7 @@ type lruOutportBlockCache struct {
 	cacheMutex sync.RWMutex
 }
 
+// NewLRUOutportBlockCache creates a new LRU cache able to store *outport.OutportBlock
 func NewLRUOutportBlockCache(cacheSize uint32) (*lruOutportBlockCache, error) {
 	if cacheSize == 0 {
 		return nil, errInvalidBlockCacheSize
@@ -28,6 +29,8 @@ func NewLRUOutportBlockCache(cacheSize uint32) (*lruOutportBlockCache, error) {
 	}, nil
 }
 
+// Add will add the block to internal cache, if not nil and if the hash doesn't already exist
+// If full, it will evict the oldest entry in cache
 func (lru *lruOutportBlockCache) Add(outportBlock *outport.OutportBlock) error {
 	lru.cacheMutex.Lock()
 	defer lru.cacheMutex.Unlock()
@@ -64,6 +67,7 @@ func (lru *lruOutportBlockCache) tryEvictCache() {
 	}
 }
 
+// Get will return a copy of the block specified by the current header hash, if exists. Otherwise, returns error
 func (lru *lruOutportBlockCache) Get(headerHash []byte) (*outport.OutportBlock, error) {
 	lru.cacheMutex.RLock()
 	outportBlock, exists := lru.cache[string(headerHash)]
@@ -78,6 +82,7 @@ func (lru *lruOutportBlockCache) Get(headerHash []byte) (*outport.OutportBlock, 
 	return &outportBlockCopy, nil
 }
 
+// IsInterfaceNil checks if the underlying pointer is nil
 func (lru *lruOutportBlockCache) IsInterfaceNil() bool {
 	return lru == nil
 }

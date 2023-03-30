@@ -31,6 +31,7 @@ func (notifier *sovereignNotifier) Notify(_ *outport.OutportBlock) error {
 	return nil
 }
 
+// IsInterfaceNil checks if the underlying pointer is nil
 func (notifier *sovereignNotifier) IsInterfaceNil() bool {
 	return notifier == nil
 }
