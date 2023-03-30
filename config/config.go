@@ -12,4 +12,5 @@ type WebSocketConfig struct {
 	MarshallerType     string `toml:"marshaller_type"`
 	RetryDuration      uint32 `toml:"retry_duration"`
 	BlockingAckOnError bool   `toml:"blocking-ack-on-error"`
+	BlocksCacheSize    uint32 `toml:"blocks-cache-size"`
 }
