@@ -14,24 +14,24 @@ func TestNewOperationHandler(t *testing.T) {
 	t.Parallel()
 
 	t.Run("should work", func(t *testing.T) {
-		oh, err := NewPayloadProcessor(&testscommon.IndexerStub{}, &testscommon.MarshallerMock{})
-		require.False(t, oh.IsInterfaceNil())
-		require.NotNil(t, oh)
+		payloadProc, err := NewPayloadProcessor(&testscommon.IndexerStub{}, &testscommon.MarshallerMock{})
+		require.False(t, payloadProc.IsInterfaceNil())
+		require.NotNil(t, payloadProc)
 		require.Nil(t, err)
 
-		err = oh.Close()
+		err = payloadProc.Close()
 		require.Nil(t, err)
 	})
 
 	t.Run("nil indexer, should return error", func(t *testing.T) {
-		oh, err := NewPayloadProcessor(nil, &testscommon.MarshallerMock{})
-		require.Nil(t, oh)
+		payloadProc, err := NewPayloadProcessor(nil, &testscommon.MarshallerMock{})
+		require.Nil(t, payloadProc)
 		require.Equal(t, errNilIndexer, err)
 	})
 
 	t.Run("nil marshaller, should return error", func(t *testing.T) {
-		oh, err := NewPayloadProcessor(&testscommon.IndexerStub{}, nil)
-		require.Nil(t, oh)
+		payloadProc, err := NewPayloadProcessor(&testscommon.IndexerStub{}, nil)
+		require.Nil(t, payloadProc)
 		require.Equal(t, errNilMarshaller, err)
 	})
 }
@@ -56,18 +56,18 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 			},
 		}
 
-		oh, _ := NewPayloadProcessor(indexerStub, marshaller)
+		payloadProc, _ := NewPayloadProcessor(indexerStub, marshaller)
 
 		payload := &data.PayloadData{
 			OperationType: data.OperationSaveBlock,
 			Payload:       blockBytes,
 		}
-		err := oh.ProcessPayload(payload)
+		err := payloadProc.ProcessPayload(payload)
 		require.True(t, saveBlockCalled)
 		require.Nil(t, err)
 
 		payload.Payload = []byte("invalid bytes")
-		err = oh.ProcessPayload(payload)
+		err = payloadProc.ProcessPayload(payload)
 		require.NotNil(t, err)
 	})
 
@@ -86,49 +86,49 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 			},
 		}
 
-		oh, _ := NewPayloadProcessor(indexerStub, marshaller)
+		payloadProc, _ := NewPayloadProcessor(indexerStub, marshaller)
 
 		payload := &data.PayloadData{
 			OperationType: data.OperationFinalizedBlock,
 			Payload:       blockBytes,
 		}
-		err := oh.ProcessPayload(payload)
+		err := payloadProc.ProcessPayload(payload)
 		require.True(t, finalizedBlockCalled)
 		require.Nil(t, err)
 
 		payload.Payload = []byte("invalid bytes")
-		err = oh.ProcessPayload(payload)
+		err = payloadProc.ProcessPayload(payload)
 		require.NotNil(t, err)
 	})
 
 	t.Run("no operation handlers", func(t *testing.T) {
 		t.Parallel()
 
-		oh, _ := NewPayloadProcessor(&testscommon.IndexerStub{}, marshaller)
+		payloadProc, _ := NewPayloadProcessor(&testscommon.IndexerStub{}, marshaller)
 
-		err := oh.ProcessPayload(&data.PayloadData{OperationType: data.OperationRevertIndexedBlock})
+		err := payloadProc.ProcessPayload(&data.PayloadData{OperationType: data.OperationRevertIndexedBlock})
 		require.Nil(t, err)
 
-		err = oh.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveRoundsInfo})
+		err = payloadProc.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveRoundsInfo})
 		require.Nil(t, err)
 
-		err = oh.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveValidatorsRating})
+		err = payloadProc.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveValidatorsRating})
 		require.Nil(t, err)
 
-		err = oh.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveValidatorsPubKeys})
+		err = payloadProc.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveValidatorsPubKeys})
 		require.Nil(t, err)
 
-		err = oh.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveAccounts})
+		err = payloadProc.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveAccounts})
 		require.Nil(t, err)
 	})
 
 	t.Run("handler not found", func(t *testing.T) {
 		t.Parallel()
 
-		oh, _ := NewPayloadProcessor(&testscommon.IndexerStub{}, marshaller)
+		payloadProc, _ := NewPayloadProcessor(&testscommon.IndexerStub{}, marshaller)
 
 		payload := &data.PayloadData{OperationType: data.OperationTypeFromUint64(0xFFFFF)}
-		err := oh.ProcessPayload(payload)
+		err := payloadProc.ProcessPayload(payload)
 		require.True(t, strings.Contains(err.Error(), errOperationTypeInvalid.Error()))
 		require.True(t, strings.Contains(err.Error(), payload.OperationType.String()))
 	})
