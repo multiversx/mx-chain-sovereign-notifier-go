@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -8,14 +9,23 @@ import (
 )
 
 type lruOutportBlockCache struct {
-	cacheSize  uint64
+	cacheSize  uint32
 	hashes     []string
 	cache      map[string]*outport.OutportBlock
 	cacheMutex sync.RWMutex
 }
 
-func NewLRUOutportBlockCache() *lruOutportBlockCache {
-	return &lruOutportBlockCache{}
+func NewLRUOutportBlockCache(cacheSize uint32) (*lruOutportBlockCache, error) {
+	if cacheSize == 0 {
+		return nil, fmt.Errorf("zero value received")
+	}
+
+	return &lruOutportBlockCache{
+		cacheSize:  cacheSize,
+		hashes:     make([]string, 0, cacheSize),
+		cache:      make(map[string]*outport.OutportBlock, cacheSize),
+		cacheMutex: sync.RWMutex{},
+	}, nil
 }
 
 func (lru *lruOutportBlockCache) Add(outportBlock *outport.OutportBlock) error {
@@ -23,25 +33,32 @@ func (lru *lruOutportBlockCache) Add(outportBlock *outport.OutportBlock) error {
 	defer lru.cacheMutex.Unlock()
 
 	if outportBlock == nil || outportBlock.BlockData == nil {
-		return fmt.Errorf("nil outport block")
+		return errNilOutportBlock
+	}
+
+	hash := outportBlock.BlockData.HeaderHash
+	hashStr := string(hash)
+	_, exists := lru.cache[hashStr]
+	if exists {
+		return fmt.Errorf("%w, hash: %s", errOutportBlockAlreadyExists, hex.EncodeToString(hash))
 	}
 
 	lru.tryEvictCache()
 
-	headerHash := string(outportBlock.BlockData.HeaderHash)
-	lru.cache[headerHash] = outportBlock
-	lru.hashes = append(lru.hashes, headerHash)
+	lru.cache[hashStr] = outportBlock
+	lru.hashes = append(lru.hashes, hashStr)
 
 	return nil
 }
 
 func (lru *lruOutportBlockCache) tryEvictCache() {
-	numEntriesToRemove := len(lru.hashes) - int(lru.cacheSize)
+	numEntriesToRemove := len(lru.hashes) - int(lru.cacheSize) + 1
 	if numEntriesToRemove <= 0 {
 		return
 	}
 
 	hashesToRemove := lru.hashes[:numEntriesToRemove]
+	lru.hashes = lru.hashes[numEntriesToRemove:]
 	for _, hashToRemove := range hashesToRemove {
 		delete(lru.cache, hashToRemove)
 	}
@@ -53,10 +70,12 @@ func (lru *lruOutportBlockCache) Get(headerHash []byte) (*outport.OutportBlock, 
 	lru.cacheMutex.RUnlock()
 
 	if !exists {
-		return nil, fmt.Errorf("not found")
+		return nil, fmt.Errorf("%w for header hash: %s",
+			errOutportBlockNotFound, hex.EncodeToString(headerHash))
 	}
 
-	return outportBlock, nil
+	outportBlockCopy := *outportBlock
+	return &outportBlockCopy, nil
 }
 
 func (lru *lruOutportBlockCache) IsInterfaceNil() bool {

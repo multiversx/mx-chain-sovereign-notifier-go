@@ -16,7 +16,10 @@ func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 		return nil, err
 	}
 
-	cache := indexer.NewLRUOutportBlockCache()
+	cache, err := indexer.NewLRUOutportBlockCache(3)
+	if err != nil {
+		return nil, err
+	}
 	dataIndexer, err := indexer.NewIndexer(sovereignNotifier, cache)
 	if err != nil {
 		return nil, err
