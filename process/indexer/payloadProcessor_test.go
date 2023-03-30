@@ -18,6 +18,9 @@ func TestNewOperationHandler(t *testing.T) {
 		require.False(t, oh.IsInterfaceNil())
 		require.NotNil(t, oh)
 		require.Nil(t, err)
+
+		err = oh.Close()
+		require.Nil(t, err)
 	})
 
 	t.Run("nil indexer, should return error", func(t *testing.T) {
