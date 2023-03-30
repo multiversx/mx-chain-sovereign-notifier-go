@@ -17,7 +17,7 @@ type lruOutportBlockCache struct {
 
 func NewLRUOutportBlockCache(cacheSize uint32) (*lruOutportBlockCache, error) {
 	if cacheSize == 0 {
-		return nil, fmt.Errorf("zero value received")
+		return nil, errInvalidBlockCacheSize
 	}
 
 	return &lruOutportBlockCache{
