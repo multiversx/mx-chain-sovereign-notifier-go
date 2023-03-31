@@ -8,12 +8,12 @@ import (
 
 type indexer struct {
 	notifier process.SovereignNotifier
-	cache    LRUOutportBlockCache
+	cache    OutportBlockCache
 }
 
 // NewIndexer creates an indexer which will internally save received blocks
 // and notify sovereign shards for each finalized block
-func NewIndexer(notifier process.SovereignNotifier, cache LRUOutportBlockCache) (process.Indexer, error) {
+func NewIndexer(notifier process.SovereignNotifier, cache OutportBlockCache) (process.Indexer, error) {
 	if check.IfNil(notifier) {
 		return nil, errNilSovereignNotifier
 	}
@@ -35,7 +35,7 @@ func (i *indexer) SaveBlock(outportBlock *outport.OutportBlock) error {
 // FinalizedBlock will check the finalized header for incoming txs
 // to sovereign shard and push the finalized block through notifier
 func (i *indexer) FinalizedBlock(finalizedBlock *outport.FinalizedBlock) error {
-	outportBlock, err := i.cache.Get(finalizedBlock.HeaderHash)
+	outportBlock, err := i.cache.Extract(finalizedBlock.HeaderHash)
 	if err != nil {
 		return err
 	}
