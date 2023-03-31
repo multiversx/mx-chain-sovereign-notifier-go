@@ -1,6 +1,8 @@
 package factory
 
 import (
+	"github.com/multiversx/mx-chain-core-go/core"
+	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/marshal/factory"
 	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/client"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
@@ -11,18 +13,23 @@ import (
 
 // CreatWsSovereignNotifier will create a ws sovereign shard notifier
 func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
-	sovereignNotifier, err := notifier.NewSovereignNotifier(cfg)
+	container, err := createBlockCreatorsContainer()
+	if err != nil {
+		return nil, err
+	}
+
+	marshaller, err := factory.NewMarshalizer(cfg.WebSocketConfig.MarshallerType)
+	if err != nil {
+		return nil, err
+	}
+
+	sovereignNotifier, err := notifier.NewSovereignNotifier(cfg, container, marshaller)
 	if err != nil {
 		return nil, err
 	}
 
 	cache := indexer.NewOutportBlockCache()
 	dataIndexer, err := indexer.NewIndexer(sovereignNotifier, cache)
-	if err != nil {
-		return nil, err
-	}
-
-	marshaller, err := factory.NewMarshalizer(cfg.WebSocketConfig.MarshallerType)
 	if err != nil {
 		return nil, err
 	}
@@ -40,4 +47,14 @@ func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 	}
 
 	return client.CreateWsClient(argsWsClient)
+}
+
+func createBlockCreatorsContainer() (process.BlockContainerHandler, error) {
+	container := block.NewEmptyBlockCreatorsContainer()
+	err := container.Add(core.ShardHeaderV2, block.NewEmptyHeaderV2Creator())
+	if err != nil {
+		return nil, err
+	}
+
+	return container, nil
 }
