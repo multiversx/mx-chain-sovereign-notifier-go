@@ -62,8 +62,8 @@ func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.
 
 	return &block.MiniBlock{
 		TxHashes:        txHashes,
-		ReceiverShardID: 0,
-		SenderShardID:   0,
+		ReceiverShardID: 0, // todo: decide what we should fill here
+		SenderShardID:   0, // todo: decide what we should fill here
 		Type:            block.TxBlock,
 		Reserved:        nil,
 	}, nil
