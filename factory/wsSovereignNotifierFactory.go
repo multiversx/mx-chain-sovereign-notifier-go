@@ -23,7 +23,12 @@ func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 		return nil, err
 	}
 
-	sovereignNotifier, err := notifier.NewSovereignNotifier(cfg, container, marshaller)
+	argsSovereignNotifier := notifier.ArgsSovereignNotifier{
+		Marshaller:          marshaller,
+		BlockContainer:      container,
+		SubscribedAddresses: nil,
+	}
+	sovereignNotifier, err := notifier.NewSovereignNotifier(argsSovereignNotifier)
 	if err != nil {
 		return nil, err
 	}

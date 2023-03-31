@@ -9,9 +9,11 @@ import (
 // SovereignNotifier defines what a sovereign notifier should do
 type SovereignNotifier interface {
 	Notify(finalizedBlock *outport.OutportBlock) error
+	RegisterHandler(handler ExtendedHeaderHandler) error
 	IsInterfaceNil() bool
 }
 
+// ExtendedHeaderHandler defines what a subscribed handler to SovereignNotifier should do
 type ExtendedHeaderHandler interface {
 	SaveExtendedHeader(header *block.ShardHeaderExtended)
 }

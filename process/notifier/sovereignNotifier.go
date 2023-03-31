@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/multiversx/mx-chain-core-go/core"
@@ -11,7 +12,6 @@ import (
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	logger "github.com/multiversx/mx-chain-logger-go"
-	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 )
 
@@ -27,21 +27,26 @@ type sovereignNotifier struct {
 	marshaller          marshal.Marshalizer
 }
 
+type ArgsSovereignNotifier struct {
+	Marshaller          marshal.Marshalizer
+	BlockContainer      process.BlockContainerHandler
+	SubscribedAddresses [][]byte
+}
+
 // NewSovereignNotifier will create a sovereign shard notifier
-func NewSovereignNotifier(config config.Config, blockContainer process.BlockContainerHandler, marshaller marshal.Marshalizer) (*sovereignNotifier, error) {
-	addresses := config.SubscribedAddresses
-	if len(addresses) == 0 {
+func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error) {
+	if len(args.SubscribedAddresses) == 0 {
 		return nil, errNoSubscribedAddresses
 	}
 
-	log.Debug("received config", "subscribed addresses", addresses)
+	log.Debug("received config", "subscribed addresses", args.SubscribedAddresses)
 
 	return &sovereignNotifier{
-		subscribedAddresses: nil, // todo here use bytes addresses
+		subscribedAddresses: args.SubscribedAddresses,
 		handlers:            make([]process.ExtendedHeaderHandler, 0),
 		mutHandler:          sync.RWMutex{},
-		blockContainer:      blockContainer,
-		marshaller:          marshaller,
+		blockContainer:      args.BlockContainer,
+		marshaller:          args.Marshaller,
 	}, nil
 }
 
@@ -66,7 +71,69 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 	return nil
 }
 
+func (notifier *sovereignNotifier) getAllIncomingMbs(txPool *outport.TransactionPool) ([]*block.MiniBlock, error) {
+	mbs := make([]*block.MiniBlock, 0)
+
+	txsMb, err := notifier.getIncomingMbFromTxs(txPool.Transactions)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: when specs are defined, we should also handle scrs mbs
+	mbs = append(mbs, txsMb)
+	return mbs, nil
+}
+
+func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.TxInfo) (*block.MiniBlock, error) {
+	txHashes := make([][]byte, 0)
+	execOrderTxHashMap := make(map[string]uint32)
+
+	for txHash, tx := range txs {
+		if !contains(notifier.subscribedAddresses, tx.GetTransaction().GetRcvAddr()) {
+			continue
+		}
+
+		hashBytes, err := hex.DecodeString(txHash)
+		if err != nil {
+			return nil, err
+		}
+
+		txHashes = append(txHashes, hashBytes)
+		execOrderTxHashMap[string(hashBytes)] = tx.GetExecutionOrder()
+	}
+
+	sort.SliceStable(txHashes, func(i, j int) bool {
+		txHash1 := string(txHashes[i])
+		txHash2 := string(txHashes[j])
+
+		return execOrderTxHashMap[txHash1] < execOrderTxHashMap[txHash2]
+	})
+
+	// TODO: Critical here, sort tx hashes by execution order
+	return &block.MiniBlock{
+		TxHashes:        txHashes,
+		ReceiverShardID: 0, // todo: decide what we should fill here
+		SenderShardID:   0, // todo: decide what we should fill here
+		Type:            block.TxBlock,
+		Reserved:        nil,
+	}, nil
+}
+
+func contains(addresses [][]byte, address []byte) bool {
+	for _, addr := range addresses {
+		if bytes.Equal(address, addr) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, headerBytes []byte) (header *block.HeaderV2, err error) {
+	if headerType != core.ShardHeaderV2 {
+		return nil, fmt.Errorf("invalid")
+	}
+
 	creator, err := notifier.blockContainer.Get(headerType)
 	if err != nil {
 		return nil, err
@@ -90,57 +157,8 @@ func (notifier *sovereignNotifier) notifyHandlers(extendedHeader *block.ShardHea
 	defer notifier.mutHandler.RUnlock()
 
 	for _, handler := range notifier.handlers {
-		go handler.SaveExtendedHeader(extendedHeader)
+		handler.SaveExtendedHeader(extendedHeader)
 	}
-}
-
-func (notifier *sovereignNotifier) getAllIncomingMbs(txPool *outport.TransactionPool) ([]*block.MiniBlock, error) {
-	mbs := make([]*block.MiniBlock, 0)
-
-	txsMb, err := notifier.getIncomingMbFromTxs(txPool.Transactions)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: when specs are defined, we should also handle scrs mbs
-	// so we would also append smth like scrMb here
-	mbs = append(mbs, txsMb)
-	return mbs, nil
-}
-
-func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.TxInfo) (*block.MiniBlock, error) {
-	txHashes := make([][]byte, 0)
-
-	for txHash, tx := range txs {
-		if !contains(notifier.subscribedAddresses, tx.GetTransaction().GetRcvAddr()) {
-			continue
-		}
-
-		hashBytes, err := hex.DecodeString(txHash)
-		if err != nil {
-			return nil, err
-		}
-
-		txHashes = append(txHashes, hashBytes)
-	}
-
-	return &block.MiniBlock{
-		TxHashes:        txHashes,
-		ReceiverShardID: 0, // todo: decide what we should fill here
-		SenderShardID:   0, // todo: decide what we should fill here
-		Type:            block.TxBlock,
-		Reserved:        nil,
-	}, nil
-}
-
-func contains(addresses [][]byte, address []byte) bool {
-	for _, addr := range addresses {
-		if bytes.Equal(address, addr) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (notifier *sovereignNotifier) RegisterHandler(handler process.ExtendedHeaderHandler) error {
