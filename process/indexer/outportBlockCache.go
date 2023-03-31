@@ -39,7 +39,6 @@ func (obc *outportBlockCache) Add(outportBlock *outport.OutportBlock) error {
 	}
 
 	obc.cache[hashStr] = outportBlock
-
 	return nil
 }
 

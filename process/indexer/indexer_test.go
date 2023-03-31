@@ -19,13 +19,13 @@ func TestNewIndexer(t *testing.T) {
 		require.False(t, check.IfNil(indx))
 	})
 
-	t.Run("should work", func(t *testing.T) {
+	t.Run("nil sovereign notifier, should error", func(t *testing.T) {
 		indx, err := NewIndexer(nil, &testscommon.OutportBlockCacheStub{})
 		require.Equal(t, errNilSovereignNotifier, err)
 		require.Nil(t, indx)
 	})
 
-	t.Run("should work", func(t *testing.T) {
+	t.Run("nil cache, should error", func(t *testing.T) {
 		indx, err := NewIndexer(&testscommon.SovereignNotifierStub{}, nil)
 		require.Equal(t, errNilOutportBlockCache, err)
 		require.Nil(t, indx)
@@ -33,6 +33,8 @@ func TestNewIndexer(t *testing.T) {
 }
 
 func TestIndexer_SaveBlock(t *testing.T) {
+	t.Parallel()
+
 	wasAddCalled := false
 	cache := &testscommon.OutportBlockCacheStub{
 		AddCalled: func(outportBlock *outport.OutportBlock) error {

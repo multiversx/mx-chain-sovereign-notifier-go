@@ -55,9 +55,11 @@ func TestOutportBlockCache_Add_Get(t *testing.T) {
 	require.Nil(t, err)
 
 	rcvBl1, err = cache.Extract(h1)
+	require.Nil(t, rcvBl1)
 	requireErrIsBlockNotFound(t, err, h1)
 
 	rcvBl2, err = cache.Extract(h2)
+	require.Nil(t, rcvBl2)
 	requireErrIsBlockNotFound(t, err, h2)
 
 	require.Equal(t, map[string]*outport.OutportBlock{
