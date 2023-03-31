@@ -14,13 +14,13 @@ func TestNewIndexer(t *testing.T) {
 	t.Parallel()
 
 	t.Run("should work", func(t *testing.T) {
-		indx, err := NewIndexer(&testscommon.SovereignNotifierStub{}, &testscommon.LRUOutportBlockCacheStub{})
+		indx, err := NewIndexer(&testscommon.SovereignNotifierStub{}, &testscommon.OutportBlockCacheStub{})
 		require.Nil(t, err)
 		require.False(t, check.IfNil(indx))
 	})
 
 	t.Run("should work", func(t *testing.T) {
-		indx, err := NewIndexer(nil, &testscommon.LRUOutportBlockCacheStub{})
+		indx, err := NewIndexer(nil, &testscommon.OutportBlockCacheStub{})
 		require.Equal(t, errNilSovereignNotifier, err)
 		require.Nil(t, indx)
 	})
@@ -34,7 +34,7 @@ func TestNewIndexer(t *testing.T) {
 
 func TestIndexer_SaveBlock(t *testing.T) {
 	wasAddCalled := false
-	cache := &testscommon.LRUOutportBlockCacheStub{
+	cache := &testscommon.OutportBlockCacheStub{
 		AddCalled: func(outportBlock *outport.OutportBlock) error {
 			wasAddCalled = true
 			return nil
@@ -53,12 +53,12 @@ func TestIndexer_FinalizedBlock(t *testing.T) {
 	t.Run("should work", func(t *testing.T) {
 		t.Parallel()
 
-		wasGetCalled := false
+		wasExtractCalled := false
 		hash := []byte("hash")
 		outportBlock := &outport.OutportBlock{BlockData: &outport.BlockData{HeaderHash: hash}}
-		cache := &testscommon.LRUOutportBlockCacheStub{
-			GetCalled: func(headerHash []byte) (*outport.OutportBlock, error) {
-				wasGetCalled = true
+		cache := &testscommon.OutportBlockCacheStub{
+			ExtractCalled: func(headerHash []byte) (*outport.OutportBlock, error) {
+				wasExtractCalled = true
 				require.Equal(t, hash, headerHash)
 
 				return outportBlock, nil
@@ -78,19 +78,19 @@ func TestIndexer_FinalizedBlock(t *testing.T) {
 
 		err := indx.FinalizedBlock(&outport.FinalizedBlock{HeaderHash: hash})
 		require.Nil(t, err)
-		require.True(t, wasGetCalled)
+		require.True(t, wasExtractCalled)
 		require.True(t, wasNotifyCalled)
 	})
 
 	t.Run("error getting block from cache", func(t *testing.T) {
 		t.Parallel()
 
-		wasGetCalled := false
+		wasExtractCalled := false
 		hash := []byte("hash")
 		errGetBlock := errors.New("error getting block")
-		cache := &testscommon.LRUOutportBlockCacheStub{
-			GetCalled: func(headerHash []byte) (*outport.OutportBlock, error) {
-				wasGetCalled = true
+		cache := &testscommon.OutportBlockCacheStub{
+			ExtractCalled: func(headerHash []byte) (*outport.OutportBlock, error) {
+				wasExtractCalled = true
 				require.Equal(t, hash, headerHash)
 
 				return nil, errGetBlock
@@ -108,7 +108,7 @@ func TestIndexer_FinalizedBlock(t *testing.T) {
 
 		err := indx.FinalizedBlock(&outport.FinalizedBlock{HeaderHash: hash})
 		require.Equal(t, errGetBlock, err)
-		require.True(t, wasGetCalled)
+		require.True(t, wasExtractCalled)
 		require.False(t, wasNotifyCalled)
 	})
 

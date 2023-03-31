@@ -2,9 +2,9 @@ package indexer
 
 import "github.com/multiversx/mx-chain-core-go/data/outport"
 
-// LRUOutportBlockCache defines a simple LRU cache able to store *outport.OutportBlock
-type LRUOutportBlockCache interface {
+// OutportBlockCache defines a simple cache able to store *outport.OutportBlock
+type OutportBlockCache interface {
 	Add(outportBlock *outport.OutportBlock) error
-	Get(headerHash []byte) (*outport.OutportBlock, error)
+	Extract(headerHash []byte) (*outport.OutportBlock, error)
 	IsInterfaceNil() bool
 }
