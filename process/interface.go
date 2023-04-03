@@ -6,6 +6,8 @@ import (
 
 // SovereignNotifier defines what a sovereign notifier should do
 type SovereignNotifier interface {
+	Notify(finalizedBlock *outport.OutportBlock) error
+	IsInterfaceNil() bool
 }
 
 // WSClient defines what a websocket client should do
