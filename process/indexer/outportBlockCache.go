@@ -24,12 +24,12 @@ func NewOutportBlockCache() *outportBlockCache {
 // Add will add the block to internal cache, if not nil and if the hash doesn't already exist
 // If full, it will evict the oldest entry in cache
 func (obc *outportBlockCache) Add(outportBlock *outport.OutportBlock) error {
-	obc.cacheMutex.Lock()
-	defer obc.cacheMutex.Unlock()
-
 	if outportBlock == nil || outportBlock.BlockData == nil {
 		return errNilOutportBlock
 	}
+
+	obc.cacheMutex.Lock()
+	defer obc.cacheMutex.Unlock()
 
 	hash := outportBlock.BlockData.HeaderHash
 	hashStr := string(hash)
@@ -46,18 +46,16 @@ func (obc *outportBlockCache) Add(outportBlock *outport.OutportBlock) error {
 func (obc *outportBlockCache) Extract(headerHash []byte) (*outport.OutportBlock, error) {
 	hashStr := string(headerHash)
 
-	obc.cacheMutex.RLock()
-	outportBlock, exists := obc.cache[hashStr]
-	obc.cacheMutex.RUnlock()
+	obc.cacheMutex.Lock()
+	defer obc.cacheMutex.Unlock()
 
+	outportBlock, exists := obc.cache[hashStr]
 	if !exists {
 		return nil, fmt.Errorf("%w for header hash: %s",
 			errOutportBlockNotFound, hex.EncodeToString(headerHash))
 	}
 
-	obc.cacheMutex.Lock()
 	delete(obc.cache, hashStr)
-	obc.cacheMutex.Unlock()
 
 	return outportBlock, nil
 }

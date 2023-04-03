@@ -95,7 +95,7 @@ func TestOutportBlockCache_AddErrorCases(t *testing.T) {
 	}, cache.cache)
 }
 
-func TestOutportBlockCache_AddConcurrentOperations(t *testing.T) {
+func TestOutportBlockCache_ConcurrentOperations(t *testing.T) {
 	t.Parallel()
 
 	cache := NewOutportBlockCache()
