@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/multiversx/mx-chain-core-go/core"
+	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/marshal"
@@ -23,18 +24,20 @@ type sovereignNotifier struct {
 	mutHandler          sync.RWMutex
 	handlers            []process.ExtendedHeaderHandler
 	subscribedAddresses [][]byte
-	blockContainer      process.BlockContainerHandler
+	headerV2Creator     block.EmptyBlockCreator
 	marshaller          marshal.Marshalizer
 }
 
 type ArgsSovereignNotifier struct {
 	Marshaller          marshal.Marshalizer
-	BlockContainer      process.BlockContainerHandler
 	SubscribedAddresses [][]byte
 }
 
 // NewSovereignNotifier will create a sovereign shard notifier
 func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error) {
+	if check.IfNil(args.Marshaller) {
+		return nil, core.ErrNilMarshalizer
+	}
 	if len(args.SubscribedAddresses) == 0 {
 		return nil, errNoSubscribedAddresses
 	}
@@ -45,13 +48,18 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 		subscribedAddresses: args.SubscribedAddresses,
 		handlers:            make([]process.ExtendedHeaderHandler, 0),
 		mutHandler:          sync.RWMutex{},
-		blockContainer:      args.BlockContainer,
+		headerV2Creator:     block.NewEmptyHeaderV2Creator(),
 		marshaller:          args.Marshaller,
 	}, nil
 }
 
 // Notify will notify the sovereign nodes via p2p about the finalized block and incoming mb txs
 func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) error {
+	err := checkNilOutportBlockFields(outportBlock)
+	if err != nil {
+		return err
+	}
+
 	mbs, err := notifier.getAllIncomingMbs(outportBlock.TransactionPool)
 	if err != nil {
 		return err
@@ -68,6 +76,20 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 	}
 
 	notifier.notifyHandlers(extendedHeader)
+	return nil
+}
+
+func checkNilOutportBlockFields(outportBlock *outport.OutportBlock) error {
+	if outportBlock == nil {
+		return errNilOutportblock
+	}
+	if outportBlock.TransactionPool == nil {
+		return errNilTransactionPool
+	}
+	if outportBlock.BlockData == nil {
+		return errNilBlockData
+	}
+
 	return nil
 }
 
@@ -95,7 +117,7 @@ func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.
 
 		hashBytes, err := hex.DecodeString(txHash)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w, hash: %s", err, txHash)
 		}
 
 		txHashes = append(txHashes, hashBytes)
@@ -109,7 +131,6 @@ func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.
 		return execOrderTxHashMap[txHash1] < execOrderTxHashMap[txHash2]
 	})
 
-	// TODO: Critical here, sort tx hashes by execution order
 	return &block.MiniBlock{
 		TxHashes:        txHashes,
 		ReceiverShardID: 0, // todo: decide what we should fill here
@@ -129,27 +150,18 @@ func contains(addresses [][]byte, address []byte) bool {
 	return false
 }
 
-func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, headerBytes []byte) (header *block.HeaderV2, err error) {
+func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, headerBytes []byte) (*block.HeaderV2, error) {
 	if headerType != core.ShardHeaderV2 {
-		return nil, fmt.Errorf("invalid")
+		return nil, fmt.Errorf("%w : %s, expected: %s",
+			errReceivedHeaderType, headerType, core.ShardHeaderV2)
 	}
 
-	creator, err := notifier.blockContainer.Get(headerType)
+	headerHandler, err := block.GetHeaderFromBytes(notifier.marshaller, notifier.headerV2Creator, headerBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	headerHandler, err := block.GetHeaderFromBytes(notifier.marshaller, creator, headerBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	headerV2, castOk := headerHandler.(*block.HeaderV2)
-	if !castOk {
-		return nil, fmt.Errorf("invalid")
-	}
-
-	return headerV2, nil
+	return headerHandler.(*block.HeaderV2), nil
 }
 
 func (notifier *sovereignNotifier) notifyHandlers(extendedHeader *block.ShardHeaderExtended) {
@@ -163,7 +175,7 @@ func (notifier *sovereignNotifier) notifyHandlers(extendedHeader *block.ShardHea
 
 func (notifier *sovereignNotifier) RegisterHandler(handler process.ExtendedHeaderHandler) error {
 	if handler == nil {
-		return fmt.Errorf("invalid")
+		return errNilExtendedHeaderHandler
 	}
 
 	notifier.mutHandler.Lock()

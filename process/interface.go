@@ -21,6 +21,7 @@ type ExtendedHeaderHandler interface {
 // BlockContainerHandler defines what a block container should be able to do
 type BlockContainerHandler interface {
 	Get(headerType core.HeaderType) (block.EmptyBlockCreator, error)
+	IsInterfaceNil() bool
 }
 
 // WSClient defines what a websocket client should do

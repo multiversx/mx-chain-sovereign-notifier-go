@@ -18,3 +18,8 @@ func (bcs *BlockContainerStub) Get(headerType core.HeaderType) (block.EmptyBlock
 
 	return nil, nil
 }
+
+// IsInterfaceNil -
+func (bcs *BlockContainerStub) IsInterfaceNil() bool {
+	return bcs == nil
+}
