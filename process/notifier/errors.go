@@ -4,6 +4,8 @@ import "errors"
 
 var errNoSubscribedAddresses = errors.New("no subscribed addresses provided")
 
+var errDuplicateSubscribedAddresses = errors.New("duplicate subscribed addresses provided")
+
 var errNilExtendedHeaderHandler = errors.New("nil extended handler provided")
 
 var errReceivedHeaderType = errors.New("received invalid header type")

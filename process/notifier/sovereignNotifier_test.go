@@ -60,6 +60,14 @@ func TestNewSovereignNotifier(t *testing.T) {
 		require.Equal(t, errNoSubscribedAddresses, err)
 		require.Nil(t, notif)
 	})
+
+	t.Run("duplicate subscribed address, should return error", func(t *testing.T) {
+		args := createArgs()
+		args.SubscribedAddresses = [][]byte{[]byte("addr"), []byte("addr")}
+		notif, err := NewSovereignNotifier(args)
+		require.Equal(t, errDuplicateSubscribedAddresses, err)
+		require.Nil(t, notif)
+	})
 }
 
 func TestSovereignNotifier_Notify(t *testing.T) {

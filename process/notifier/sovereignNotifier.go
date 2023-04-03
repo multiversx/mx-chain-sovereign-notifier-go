@@ -38,8 +38,9 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 	if check.IfNil(args.Marshaller) {
 		return nil, core.ErrNilMarshalizer
 	}
-	if len(args.SubscribedAddresses) == 0 {
-		return nil, errNoSubscribedAddresses
+	err := checkAddresses(args.SubscribedAddresses)
+	if err != nil {
+		return nil, err
 	}
 
 	log.Debug("received config", "subscribed addresses", args.SubscribedAddresses)
@@ -51,6 +52,24 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 		headerV2Creator:     block.NewEmptyHeaderV2Creator(),
 		marshaller:          args.Marshaller,
 	}, nil
+}
+
+func checkAddresses(addresses [][]byte) error {
+	numAddresses := len(addresses)
+	if numAddresses == 0 {
+		return errNoSubscribedAddresses
+	}
+
+	addressesMap := make(map[string]struct{})
+	for _, addr := range addresses {
+		addressesMap[string(addr)] = struct{}{}
+	}
+
+	if len(addressesMap) != numAddresses {
+		return errDuplicateSubscribedAddresses
+	}
+
+	return nil
 }
 
 // Notify will notify the sovereign nodes via p2p about the finalized block and incoming mb txs
