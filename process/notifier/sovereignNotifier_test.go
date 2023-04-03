@@ -165,7 +165,7 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	require.True(t, saveHeaderCalled2)
 }
 
-func TestSovereignNotifier_NotifyErrorCases(t *testing.T) {
+func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {
 	t.Parallel()
 
 	t.Run("register invalid extended header handler", func(t *testing.T) {
@@ -219,7 +219,7 @@ func TestSovereignNotifier_NotifyErrorCases(t *testing.T) {
 		require.True(t, strings.Contains(err.Error(), invalidHash))
 	})
 
-	t.Run("notify invalid header typer", func(t *testing.T) {
+	t.Run("notify invalid header type", func(t *testing.T) {
 		args := createArgs()
 		sn, _ := NewSovereignNotifier(args)
 

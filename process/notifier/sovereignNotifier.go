@@ -72,7 +72,9 @@ func checkAddresses(addresses [][]byte) error {
 	return nil
 }
 
-// Notify will notify the sovereign nodes via p2p about the finalized block and incoming mb txs
+// Notify will notify the sovereign nodes about the finalized block and incoming mb txs
+// For each subscribed address, it searches if the receiver is found in tx in pool.
+// If found, IncomingMiniBlocks will contain the ordered tx hashes by execution.
 func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) error {
 	err := checkNilOutportBlockFields(outportBlock)
 	if err != nil {
@@ -189,6 +191,7 @@ func (notifier *sovereignNotifier) notifyHandlers(extendedHeader *block.ShardHea
 	}
 }
 
+// RegisterHandler will register an extended header handler to be notified about incoming headers and miniblocks
 func (notifier *sovereignNotifier) RegisterHandler(handler process.ExtendedHeaderHandler) error {
 	if handler == nil {
 		return errNilExtendedHeaderHandler
