@@ -125,10 +125,7 @@ func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.
 	}
 
 	sort.SliceStable(txHashes, func(i, j int) bool {
-		txHash1 := string(txHashes[i])
-		txHash2 := string(txHashes[j])
-
-		return execOrderTxHashMap[txHash1] < execOrderTxHashMap[txHash2]
+		return execOrderTxHashMap[string(txHashes[i])] < execOrderTxHashMap[string(txHashes[j])]
 	})
 
 	return &block.MiniBlock{
