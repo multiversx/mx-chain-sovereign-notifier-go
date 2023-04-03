@@ -141,6 +141,8 @@ func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.
 			return nil, fmt.Errorf("%w, hash: %s", err, txHash)
 		}
 
+		log.Info("found incoming tx", "tx hash", txHash)
+
 		txHashes = append(txHashes, hashBytes)
 		execOrderTxHashMap[string(hashBytes)] = tx.GetExecutionOrder()
 	}
