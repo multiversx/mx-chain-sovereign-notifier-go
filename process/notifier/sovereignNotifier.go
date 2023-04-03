@@ -1,7 +1,6 @@
 package notifier
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"sort"
@@ -23,7 +22,7 @@ type ExtendedHeaderHandler func(header *block.ShardHeaderExtended)
 type sovereignNotifier struct {
 	mutHandler          sync.RWMutex
 	handlers            []process.ExtendedHeaderHandler
-	subscribedAddresses [][]byte
+	subscribedAddresses map[string]struct{}
 	headerV2Creator     block.EmptyBlockCreator
 	marshaller          marshal.Marshalizer
 }
@@ -38,7 +37,7 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 	if check.IfNil(args.Marshaller) {
 		return nil, core.ErrNilMarshalizer
 	}
-	err := checkAddresses(args.SubscribedAddresses)
+	subscribedAddresses, err := getAddressesMap(args.SubscribedAddresses)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +45,7 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 	log.Debug("received config", "subscribed addresses", args.SubscribedAddresses)
 
 	return &sovereignNotifier{
-		subscribedAddresses: args.SubscribedAddresses,
+		subscribedAddresses: subscribedAddresses,
 		handlers:            make([]process.ExtendedHeaderHandler, 0),
 		mutHandler:          sync.RWMutex{},
 		headerV2Creator:     block.NewEmptyHeaderV2Creator(),
@@ -54,10 +53,10 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 	}, nil
 }
 
-func checkAddresses(addresses [][]byte) error {
+func getAddressesMap(addresses [][]byte) (map[string]struct{}, error) {
 	numAddresses := len(addresses)
 	if numAddresses == 0 {
-		return errNoSubscribedAddresses
+		return nil, errNoSubscribedAddresses
 	}
 
 	addressesMap := make(map[string]struct{})
@@ -66,10 +65,10 @@ func checkAddresses(addresses [][]byte) error {
 	}
 
 	if len(addressesMap) != numAddresses {
-		return errDuplicateSubscribedAddresses
+		return nil, errDuplicateSubscribedAddresses
 	}
 
-	return nil
+	return addressesMap, nil
 }
 
 // Notify will notify the sovereign nodes about the finalized block and incoming mb txs
@@ -132,7 +131,9 @@ func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.
 	execOrderTxHashMap := make(map[string]uint32)
 
 	for txHash, tx := range txs {
-		if !contains(notifier.subscribedAddresses, tx.GetTransaction().GetRcvAddr()) {
+		receiver := tx.GetTransaction().GetRcvAddr()
+		_, found := notifier.subscribedAddresses[string(receiver)]
+		if !found {
 			continue
 		}
 
@@ -141,7 +142,7 @@ func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.
 			return nil, fmt.Errorf("%w, hash: %s", err, txHash)
 		}
 
-		log.Info("found incoming tx", "tx hash", txHash)
+		log.Info("found incoming tx", "tx hash", txHash, "address", hex.EncodeToString(receiver))
 
 		txHashes = append(txHashes, hashBytes)
 		execOrderTxHashMap[string(hashBytes)] = tx.GetExecutionOrder()
@@ -158,16 +159,6 @@ func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.
 		Type:            block.TxBlock,
 		Reserved:        nil,
 	}, nil
-}
-
-func contains(addresses [][]byte, address []byte) bool {
-	for _, addr := range addresses {
-		if bytes.Equal(address, addr) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, headerBytes []byte) (*block.HeaderV2, error) {
