@@ -2,15 +2,17 @@ package notifier
 
 import "errors"
 
+var errNilShardCoordinator = errors.New("nil shard coordinator provided")
+
 var errNoSubscribedAddresses = errors.New("no subscribed addresses provided")
 
 var errDuplicateSubscribedAddresses = errors.New("duplicate subscribed addresses provided")
 
-var errNilExtendedHeaderHandler = errors.New("nil extended handler provided")
+var errNilExtendedHeaderHandler = errors.New("nil extended header handler provided")
 
-var errReceivedHeaderType = errors.New("received invalid header type")
+var errInvalidHeaderTypeReceived = errors.New("received invalid header type")
 
-var errNilOutportblock = errors.New("nil outport block provided")
+var errNilOutportBlock = errors.New("nil outport block provided")
 
 var errNilTransactionPool = errors.New("nil transaction pool provided")
 

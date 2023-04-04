@@ -1,3 +1,5 @@
+num_main_shards = 3
+
 subscribed_addresses = ["erd1", "erd1"]
 
 [web_socket]

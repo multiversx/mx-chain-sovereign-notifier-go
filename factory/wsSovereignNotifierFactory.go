@@ -3,6 +3,7 @@ package factory
 import (
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/pubkeyConverter"
+	"github.com/multiversx/mx-chain-core-go/core/sharding"
 	"github.com/multiversx/mx-chain-core-go/marshal/factory"
 	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/client"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
@@ -11,10 +12,13 @@ import (
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process/notifier"
 )
 
-const addressLen = 32
+const (
+	addressLen = 32
+	selfId     = 0
+)
 
-// CreatWsSovereignNotifier will create a ws sovereign shard notifier
-func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
+// CreateWsSovereignNotifier will create a ws sovereign shard notifier
+func CreateWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 	marshaller, err := factory.NewMarshalizer(cfg.WebSocketConfig.MarshallerType)
 	if err != nil {
 		return nil, err
@@ -25,9 +29,14 @@ func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 		return nil, err
 	}
 
+	shardCoordinator, err := sharding.NewMultiShardCoordinator(cfg.NumOfMainShards, selfId)
+	if err != nil {
+		return nil, err
+	}
 	argsSovereignNotifier := notifier.ArgsSovereignNotifier{
 		Marshaller:          marshaller,
 		SubscribedAddresses: subscribedAddresses,
+		ShardCoordinator:    shardCoordinator,
 	}
 	sovereignNotifier, err := notifier.NewSovereignNotifier(argsSovereignNotifier)
 	if err != nil {

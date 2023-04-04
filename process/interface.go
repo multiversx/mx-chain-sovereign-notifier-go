@@ -12,9 +12,15 @@ type SovereignNotifier interface {
 	IsInterfaceNil() bool
 }
 
+type ShardCoordinator interface {
+	ComputeId(address []byte) uint32
+	IsInterfaceNil() bool
+}
+
 // ExtendedHeaderHandler defines what a subscribed handler to SovereignNotifier should do
 type ExtendedHeaderHandler interface {
-	SaveExtendedHeader(header *block.ShardHeaderExtended)
+	ReceivedExtendedHeader(header *block.ShardHeaderExtended)
+	IsInterfaceNil() bool
 }
 
 // WSClient defines what a websocket client should do

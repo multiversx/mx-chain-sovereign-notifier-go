@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -17,6 +18,7 @@ import (
 
 func createArgs() ArgsSovereignNotifier {
 	return ArgsSovereignNotifier{
+		ShardCoordinator:    &testscommon.ShardCoordinatorStub{},
 		Marshaller:          &testscommon.MarshallerMock{},
 		SubscribedAddresses: [][]byte{[]byte("address")},
 	}
@@ -50,6 +52,14 @@ func TestNewSovereignNotifier(t *testing.T) {
 		args.Marshaller = nil
 		notif, err := NewSovereignNotifier(args)
 		require.Equal(t, core.ErrNilMarshalizer, err)
+		require.Nil(t, notif)
+	})
+
+	t.Run("nil shard coordinator, should return error", func(t *testing.T) {
+		args := createArgs()
+		args.ShardCoordinator = nil
+		notif, err := NewSovereignNotifier(args)
+		require.Equal(t, errNilShardCoordinator, err)
 		require.Nil(t, notif)
 	})
 
@@ -91,7 +101,7 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 		IncomingMiniBlocks: []*block.MiniBlock{
 			{
 				TxHashes:        [][]byte{txHash2, txHash3, txHash1},
-				ReceiverShardID: 0,
+				ReceiverShardID: core.SovereignChainShardId,
 				SenderShardID:   0,
 				Type:            block.TxBlock,
 				Reserved:        nil,
@@ -102,13 +112,13 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	saveHeaderCalled1 := false
 	saveHeaderCalled2 := false
 	handler1 := &testscommon.ExtendedHeaderHandlerStub{
-		SaveExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
+		ReceivedExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled1 = true
 		},
 	}
 	handler2 := &testscommon.ExtendedHeaderHandlerStub{
-		SaveExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
+		ReceivedExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled2 = true
 		},
@@ -181,7 +191,7 @@ func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {
 		sn, _ := NewSovereignNotifier(args)
 
 		err := sn.Notify(nil)
-		require.Equal(t, errNilOutportblock, err)
+		require.Equal(t, errNilOutportBlock, err)
 
 		outportBlock := &outport.OutportBlock{
 			BlockData:       createBlockData(args.Marshaller),
@@ -232,7 +242,7 @@ func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {
 
 		err := sn.Notify(outportBlock)
 		require.NotNil(t, err)
-		require.True(t, strings.Contains(err.Error(), errReceivedHeaderType.Error()))
+		require.True(t, strings.Contains(err.Error(), errInvalidHeaderTypeReceived.Error()))
 		require.True(t, strings.Contains(err.Error(), blockData.HeaderType))
 	})
 
@@ -251,4 +261,82 @@ func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {
 		err := sn.Notify(outportBlock)
 		require.NotNil(t, err)
 	})
+}
+
+func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
+	t.Parallel()
+
+	addr1 := []byte("addr1")
+	txHash1 := []byte("hash1")
+
+	headerV2 := &block.HeaderV2{
+		Header:            &block.Header{},
+		ScheduledRootHash: []byte("root hash"),
+	}
+	extendedShardHeader := &block.ShardHeaderExtended{
+		Header: headerV2,
+		IncomingMiniBlocks: []*block.MiniBlock{
+			{
+				TxHashes:        [][]byte{txHash1},
+				ReceiverShardID: core.SovereignChainShardId,
+				SenderShardID:   0,
+				Type:            block.TxBlock,
+				Reserved:        nil,
+			},
+		},
+	}
+
+	args := createArgs()
+	args.SubscribedAddresses = [][]byte{addr1}
+
+	sn, _ := NewSovereignNotifier(args)
+
+	headerBytes, err := args.Marshaller.Marshal(headerV2)
+	require.Nil(t, err)
+	outportBlock := &outport.OutportBlock{
+		BlockData: &outport.BlockData{
+			HeaderBytes: headerBytes,
+			HeaderType:  string(core.ShardHeaderV2),
+		},
+		TransactionPool: &outport.TransactionPool{
+			Transactions: map[string]*outport.TxInfo{
+				hex.EncodeToString(txHash1): {
+					Transaction: &transaction.Transaction{
+						RcvAddr: addr1,
+					},
+					ExecutionOrder: 0,
+				},
+			},
+		},
+	}
+
+	n := 100
+	for i := 0; i < n; i++ {
+		switch i % 2 {
+		case 0:
+			go func() {
+				errNotify := sn.Notify(outportBlock)
+				require.Nil(t, errNotify)
+			}()
+		case 1:
+			go func() {
+				handler := &testscommon.ExtendedHeaderHandlerStub{
+					ReceivedExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
+						require.Equal(t, extendedShardHeader, header)
+					},
+				}
+
+				errRegister := sn.RegisterHandler(handler)
+				require.Nil(t, errRegister)
+			}()
+		default:
+			require.Fail(t, "should not have entered here")
+		}
+	}
+
+	time.Sleep(time.Millisecond * 200)
+
+	sn.mutHandler.RLock()
+	defer sn.mutHandler.RUnlock()
+	require.Equal(t, n/2, len(sn.handlers))
 }

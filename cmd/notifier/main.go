@@ -74,7 +74,7 @@ func startNotifier(ctx *cli.Context) error {
 		}
 	}
 
-	wsClient, err := factory.CreatWsSovereignNotifier(cfg)
+	wsClient, err := factory.CreateWsSovereignNotifier(cfg)
 	if err != nil {
 		return fmt.Errorf("cannot create sovereign notifier, error: %w", err)
 	}
