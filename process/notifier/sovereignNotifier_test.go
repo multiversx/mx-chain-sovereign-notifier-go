@@ -3,8 +3,8 @@ package notifier
 import (
 	"encoding/hex"
 	"strings"
+	"sync"
 	"testing"
-	"time"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -311,6 +311,7 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 	}
 
 	n := 100
+	wg := sync.WaitGroup{}
 	for i := 0; i < n; i++ {
 		switch i % 2 {
 		case 0:
@@ -319,7 +320,11 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 				require.Nil(t, errNotify)
 			}()
 		case 1:
+			wg.Add(1)
+
 			go func() {
+				defer wg.Done()
+
 				handler := &testscommon.ExtendedHeaderHandlerStub{
 					ReceivedExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
 						require.Equal(t, extendedShardHeader, header)
@@ -334,7 +339,7 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 		}
 	}
 
-	time.Sleep(time.Millisecond * 200)
+	wg.Wait()
 
 	sn.mutHandler.RLock()
 	defer sn.mutHandler.RUnlock()

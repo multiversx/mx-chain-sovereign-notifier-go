@@ -12,6 +12,7 @@ type SovereignNotifier interface {
 	IsInterfaceNil() bool
 }
 
+// ShardCoordinator should be able to compute an address' shard id
 type ShardCoordinator interface {
 	ComputeId(address []byte) uint32
 	IsInterfaceNil() bool
