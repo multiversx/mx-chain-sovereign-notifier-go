@@ -86,7 +86,7 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 		return err
 	}
 
-	mbs, err := notifier.getAllIncomingMbs(outportBlock.TransactionPool)
+	mbs, err := notifier.createAllIncomingMbs(outportBlock.TransactionPool)
 	if err != nil {
 		return err
 	}
@@ -119,10 +119,10 @@ func checkNilOutportBlockFields(outportBlock *outport.OutportBlock) error {
 	return nil
 }
 
-func (notifier *sovereignNotifier) getAllIncomingMbs(txPool *outport.TransactionPool) ([]*block.MiniBlock, error) {
+func (notifier *sovereignNotifier) createAllIncomingMbs(txPool *outport.TransactionPool) ([]*block.MiniBlock, error) {
 	mbs := make([]*block.MiniBlock, 0)
 
-	txsMb, err := notifier.getIncomingMbFromTxs(txPool.Transactions)
+	txsMb, err := notifier.createIncomingMbsFromTxs(txPool.Transactions)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (notifier *sovereignNotifier) getAllIncomingMbs(txPool *outport.Transaction
 	return mbs, nil
 }
 
-func (notifier *sovereignNotifier) getIncomingMbFromTxs(txs map[string]*outport.TxInfo) (*block.MiniBlock, error) {
+func (notifier *sovereignNotifier) createIncomingMbsFromTxs(txs map[string]*outport.TxInfo) (*block.MiniBlock, error) {
 	txHashes := make([][]byte, 0)
 	execOrderTxHashMap := make(map[string]uint32)
 
