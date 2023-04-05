@@ -2,6 +2,7 @@ package config
 
 // Config holds notifier configuration
 type Config struct {
+	NumOfMainShards     uint32          `toml:"num_main_shards"`
 	SubscribedAddresses []string        `toml:"subscribed_addresses"`
 	WebSocketConfig     WebSocketConfig `toml:"web_socket"`
 }

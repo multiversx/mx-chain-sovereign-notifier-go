@@ -1,10 +1,12 @@
+num_main_shards = 3
+
 subscribed_addresses = ["erd1", "erd1"]
 
 [web_socket]
     url = "localhost:10001"
     # Possible values: json, gogo protobuf. Should be compatible with mx-chain-node outport driver config
     marshaller_type = "gogo protobuf"
-    # Retry duration (receive/ send ack signal) in seconds
+    # Retry duration (receive/send ack signal) in seconds
     retry_duration = 5
     # Signals if in case of data payload processing error, we should send the ack signal or not
     blocking-ack-on-error = false

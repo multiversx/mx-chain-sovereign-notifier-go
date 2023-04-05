@@ -1,6 +1,9 @@
 package factory
 
 import (
+	"github.com/multiversx/mx-chain-core-go/core"
+	"github.com/multiversx/mx-chain-core-go/core/pubkeyConverter"
+	"github.com/multiversx/mx-chain-core-go/core/sharding"
 	"github.com/multiversx/mx-chain-core-go/marshal/factory"
 	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/client"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
@@ -9,20 +12,39 @@ import (
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process/notifier"
 )
 
-// CreatWsSovereignNotifier will create a ws sovereign shard notifier
-func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
-	sovereignNotifier, err := notifier.NewSovereignNotifier(cfg)
+const (
+	addressLen = 32
+	selfId     = 0
+)
+
+// CreateWsSovereignNotifier will create a ws sovereign shard notifier
+func CreateWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
+	marshaller, err := factory.NewMarshalizer(cfg.WebSocketConfig.MarshallerType)
+	if err != nil {
+		return nil, err
+	}
+
+	subscribedAddresses, err := getDecodedAddresses(cfg.SubscribedAddresses)
+	if err != nil {
+		return nil, err
+	}
+
+	shardCoordinator, err := sharding.NewMultiShardCoordinator(cfg.NumOfMainShards, selfId)
+	if err != nil {
+		return nil, err
+	}
+	argsSovereignNotifier := notifier.ArgsSovereignNotifier{
+		Marshaller:          marshaller,
+		SubscribedAddresses: subscribedAddresses,
+		ShardCoordinator:    shardCoordinator,
+	}
+	sovereignNotifier, err := notifier.NewSovereignNotifier(argsSovereignNotifier)
 	if err != nil {
 		return nil, err
 	}
 
 	cache := indexer.NewOutportBlockCache()
 	dataIndexer, err := indexer.NewIndexer(sovereignNotifier, cache)
-	if err != nil {
-		return nil, err
-	}
-
-	marshaller, err := factory.NewMarshalizer(cfg.WebSocketConfig.MarshallerType)
 	if err != nil {
 		return nil, err
 	}
@@ -40,4 +62,23 @@ func CreatWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 	}
 
 	return client.CreateWsClient(argsWsClient)
+}
+
+func getDecodedAddresses(addresses []string) ([][]byte, error) {
+	pubKeyConv, err := pubkeyConverter.NewBech32PubkeyConverter(addressLen, core.DefaultAddressPrefix)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := make([][]byte, len(addresses))
+	for idx, addr := range addresses {
+		decodedAddr, errDecode := pubKeyConv.Decode(addr)
+		if errDecode != nil {
+			return nil, errDecode
+		}
+
+		ret[idx] = decodedAddr
+	}
+
+	return ret, err
 }
