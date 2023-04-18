@@ -2,10 +2,14 @@ package testscommon
 
 // ShardCoordinatorStub -
 type ShardCoordinatorStub struct {
+	ComputeIdCalled func(address []byte) uint32
 }
 
 // ComputeId -
-func (scs *ShardCoordinatorStub) ComputeId(_ []byte) uint32 {
+func (scs *ShardCoordinatorStub) ComputeId(address []byte) uint32 {
+	if scs.ComputeIdCalled != nil {
+		return scs.ComputeIdCalled(address)
+	}
 	return 0
 }
 

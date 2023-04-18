@@ -172,6 +172,9 @@ func (notifier *sovereignNotifier) createIncomingMbsFromTxs(txs map[string]*outp
 		})
 	}
 
+	sort.SliceStable(mbs, func(i, j int) bool {
+		return mbs[i].SenderShardID < mbs[j].SenderShardID
+	})
 	return mbs, nil
 }
 
