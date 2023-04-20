@@ -27,7 +27,7 @@ type ExtendedHeaderHandler interface {
 // WSClient defines what a websocket client should do
 type WSClient interface {
 	Start()
-	Close()
+	Close() error
 }
 
 // Indexer should handle node indexer events

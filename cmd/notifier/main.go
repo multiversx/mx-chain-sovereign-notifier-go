@@ -89,7 +89,9 @@ func startNotifier(ctx *cli.Context) error {
 	<-interrupt
 	log.Info("closing app at user's signal")
 
-	wsClient.Close()
+	err = wsClient.Close()
+	log.LogIfError(err)
+
 	if withLogFile {
 		err = logFile.Close()
 		log.LogIfError(err)
