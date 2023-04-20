@@ -17,34 +17,49 @@ const (
 	selfId     = 0
 )
 
-// CreateWsSovereignNotifier will create a ws sovereign shard notifier
-func CreateWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
-	marshaller, err := factory.NewMarshalizer(cfg.WebSocketConfig.MarshallerType)
+type ArgsCreateSovereignNotifier struct {
+	MarshallerType      string
+	SubscribedAddresses []string
+	NumOfMainShards     uint32
+}
+
+func CreateSovereignNotifier(args ArgsCreateSovereignNotifier) (process.SovereignNotifier, error) {
+	marshaller, err := factory.NewMarshalizer(args.MarshallerType)
 	if err != nil {
 		return nil, err
 	}
 
-	subscribedAddresses, err := getDecodedAddresses(cfg.SubscribedAddresses)
+	subscribedAddresses, err := getDecodedAddresses(args.SubscribedAddresses)
 	if err != nil {
 		return nil, err
 	}
 
-	shardCoordinator, err := sharding.NewMultiShardCoordinator(cfg.NumOfMainShards, selfId)
+	shardCoordinator, err := sharding.NewMultiShardCoordinator(args.NumOfMainShards, selfId)
 	if err != nil {
 		return nil, err
 	}
+
 	argsSovereignNotifier := notifier.ArgsSovereignNotifier{
 		Marshaller:          marshaller,
 		SubscribedAddresses: subscribedAddresses,
 		ShardCoordinator:    shardCoordinator,
 	}
-	sovereignNotifier, err := notifier.NewSovereignNotifier(argsSovereignNotifier)
+	return notifier.NewSovereignNotifier(argsSovereignNotifier)
+}
+
+type ArgsWsClientReceiverNotifier struct {
+	WebSocketConfig   config.WebSocketConfig
+	SovereignNotifier process.SovereignNotifier
+}
+
+func CreateWsClientReceiverNotifier(args ArgsWsClientReceiverNotifier) (process.WSClient, error) {
+	marshaller, err := factory.NewMarshalizer(args.WebSocketConfig.MarshallerType)
 	if err != nil {
 		return nil, err
 	}
 
 	cache := indexer.NewOutportBlockCache()
-	dataIndexer, err := indexer.NewIndexer(sovereignNotifier, cache)
+	dataIndexer, err := indexer.NewIndexer(args.SovereignNotifier, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -55,13 +70,30 @@ func CreateWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 	}
 
 	argsWsClient := client.ArgsCreateWsClient{
-		Url:                cfg.WebSocketConfig.Url,
-		RetryDurationInSec: cfg.WebSocketConfig.RetryDuration,
-		BlockingAckOnError: cfg.WebSocketConfig.BlockingAckOnError,
+		Url:                args.WebSocketConfig.Url,
+		RetryDurationInSec: args.WebSocketConfig.RetryDuration,
+		BlockingAckOnError: args.WebSocketConfig.BlockingAckOnError,
 		PayloadProcessor:   payloadProcessor,
 	}
 
 	return client.CreateWsClient(argsWsClient)
+}
+
+// CreateWsSovereignNotifier will create a ws sovereign shard notifier
+func CreateWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
+	sovereignNotifier, err := CreateSovereignNotifier(ArgsCreateSovereignNotifier{
+		MarshallerType:      cfg.WebSocketConfig.MarshallerType,
+		SubscribedAddresses: cfg.SubscribedAddresses,
+		NumOfMainShards:     cfg.NumOfMainShards,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return CreateWsClientReceiverNotifier(ArgsWsClientReceiverNotifier{
+		WebSocketConfig:   cfg.WebSocketConfig,
+		SovereignNotifier: sovereignNotifier,
+	})
 }
 
 func getDecodedAddresses(addresses []string) ([][]byte, error) {

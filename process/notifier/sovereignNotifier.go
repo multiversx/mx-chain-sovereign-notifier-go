@@ -8,6 +8,7 @@ import (
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
+	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/marshal"
@@ -101,7 +102,7 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 		IncomingMiniBlocks: mbs,
 	}
 
-	notifier.notifyHandlers(extendedHeader)
+	notifier.notifyHandlers(outportBlock.BlockData.HeaderHash, extendedHeader)
 	return nil
 }
 
@@ -181,12 +182,12 @@ func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, heade
 	return headerHandler.(*block.HeaderV2), nil
 }
 
-func (notifier *sovereignNotifier) notifyHandlers(extendedHeader *block.ShardHeaderExtended) {
+func (notifier *sovereignNotifier) notifyHandlers(headerHash []byte, header data.HeaderHandler) {
 	notifier.mutHandler.RLock()
 	defer notifier.mutHandler.RUnlock()
 
 	for _, handler := range notifier.handlers {
-		handler.ReceivedExtendedHeader(extendedHeader)
+		handler.AddHeader(headerHash, header)
 	}
 }
 

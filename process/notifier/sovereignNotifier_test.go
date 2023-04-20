@@ -8,6 +8,7 @@ import (
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
+	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/data/transaction"
@@ -92,6 +93,7 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	txHash3 := []byte("hash3")
 	txHash4 := []byte("hash4")
 
+	expectedHeaderHash := []byte("headerHash")
 	headerV2 := &block.HeaderV2{
 		Header:            &block.Header{},
 		ScheduledRootHash: []byte("root hash"),
@@ -112,13 +114,15 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	saveHeaderCalled1 := false
 	saveHeaderCalled2 := false
 	handler1 := &testscommon.ExtendedHeaderHandlerStub{
-		ReceivedExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
+		AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
+			require.Equal(t, expectedHeaderHash, headerHash)
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled1 = true
 		},
 	}
 	handler2 := &testscommon.ExtendedHeaderHandlerStub{
-		ReceivedExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
+		AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
+			require.Equal(t, expectedHeaderHash, headerHash)
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled2 = true
 		},
@@ -136,6 +140,7 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 
 	outportBlock := &outport.OutportBlock{
 		BlockData: &outport.BlockData{
+			HeaderHash:  expectedHeaderHash,
 			HeaderBytes: headerBytes,
 			HeaderType:  string(core.ShardHeaderV2),
 		},
@@ -293,8 +298,11 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 
 	headerBytes, err := args.Marshaller.Marshal(headerV2)
 	require.Nil(t, err)
+
+	expectedHeaderHash := []byte("hash")
 	outportBlock := &outport.OutportBlock{
 		BlockData: &outport.BlockData{
+			HeaderHash:  expectedHeaderHash,
 			HeaderBytes: headerBytes,
 			HeaderType:  string(core.ShardHeaderV2),
 		},
@@ -326,7 +334,8 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 				defer wg.Done()
 
 				handler := &testscommon.ExtendedHeaderHandlerStub{
-					ReceivedExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
+					AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
+						require.Equal(t, expectedHeaderHash, headerHash)
 						require.Equal(t, extendedShardHeader, header)
 					},
 				}

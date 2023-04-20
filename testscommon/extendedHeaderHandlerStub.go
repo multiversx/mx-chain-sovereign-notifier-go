@@ -1,16 +1,18 @@
 package testscommon
 
-import "github.com/multiversx/mx-chain-core-go/data/block"
+import (
+	"github.com/multiversx/mx-chain-core-go/data"
+)
 
 // ExtendedHeaderHandlerStub -
 type ExtendedHeaderHandlerStub struct {
-	ReceivedExtendedHeaderCalled func(header *block.ShardHeaderExtended)
+	AddHeaderCalled func(headerHash []byte, header data.HeaderHandler)
 }
 
-// ReceivedExtendedHeader -
-func (stub *ExtendedHeaderHandlerStub) ReceivedExtendedHeader(header *block.ShardHeaderExtended) {
-	if stub.ReceivedExtendedHeaderCalled != nil {
-		stub.ReceivedExtendedHeaderCalled(header)
+// AddHeader -
+func (stub *ExtendedHeaderHandlerStub) AddHeader(headerHash []byte, header data.HeaderHandler) {
+	if stub.AddHeaderCalled != nil {
+		stub.AddHeaderCalled(headerHash, header)
 	}
 }
 

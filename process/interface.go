@@ -1,7 +1,7 @@
 package process
 
 import (
-	"github.com/multiversx/mx-chain-core-go/data/block"
+	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 )
 
@@ -20,7 +20,7 @@ type ShardCoordinator interface {
 
 // ExtendedHeaderHandler defines what a subscribed handler to SovereignNotifier should do
 type ExtendedHeaderHandler interface {
-	ReceivedExtendedHeader(header *block.ShardHeaderExtended)
+	AddHeader(headerHash []byte, header data.HeaderHandler)
 	IsInterfaceNil() bool
 }
 
