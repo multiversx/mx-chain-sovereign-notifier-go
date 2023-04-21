@@ -17,12 +17,14 @@ const (
 	selfId     = 0
 )
 
+// ArgsCreateSovereignNotifier is a struct placeholder for sovereign notifier args
 type ArgsCreateSovereignNotifier struct {
 	MarshallerType      string
 	SubscribedAddresses []string
 	NumOfMainShards     uint32
 }
 
+// CreateSovereignNotifier creates a sovereign notifier which will notify subscribed handlers about incoming headers
 func CreateSovereignNotifier(args ArgsCreateSovereignNotifier) (process.SovereignNotifier, error) {
 	marshaller, err := factory.NewMarshalizer(args.MarshallerType)
 	if err != nil {
@@ -47,11 +49,13 @@ func CreateSovereignNotifier(args ArgsCreateSovereignNotifier) (process.Sovereig
 	return notifier.NewSovereignNotifier(argsSovereignNotifier)
 }
 
+// ArgsWsClientReceiverNotifier is a struct placeholder for ws client receiver args
 type ArgsWsClientReceiverNotifier struct {
 	WebSocketConfig   config.WebSocketConfig
 	SovereignNotifier process.SovereignNotifier
 }
 
+// CreateWsClientReceiverNotifier creates a ws client receiver for incoming outport blocks
 func CreateWsClientReceiverNotifier(args ArgsWsClientReceiverNotifier) (process.WSClient, error) {
 	marshaller, err := factory.NewMarshalizer(args.WebSocketConfig.MarshallerType)
 	if err != nil {
@@ -75,7 +79,6 @@ func CreateWsClientReceiverNotifier(args ArgsWsClientReceiverNotifier) (process.
 		BlockingAckOnError: args.WebSocketConfig.BlockingAckOnError,
 		PayloadProcessor:   payloadProcessor,
 	}
-
 	return client.CreateWsClient(argsWsClient)
 }
 

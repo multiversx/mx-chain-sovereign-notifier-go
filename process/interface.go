@@ -8,7 +8,7 @@ import (
 // SovereignNotifier defines what a sovereign notifier should do
 type SovereignNotifier interface {
 	Notify(finalizedBlock *outport.OutportBlock) error
-	RegisterHandler(handler ExtendedHeaderHandler) error
+	RegisterHandler(handler HeaderSubscriber) error
 	IsInterfaceNil() bool
 }
 
@@ -18,8 +18,8 @@ type ShardCoordinator interface {
 	IsInterfaceNil() bool
 }
 
-// ExtendedHeaderHandler defines what a subscribed handler to SovereignNotifier should do
-type ExtendedHeaderHandler interface {
+// HeaderSubscriber defines a subscribed to incoming headers
+type HeaderSubscriber interface {
 	AddHeader(headerHash []byte, header data.HeaderHandler)
 	IsInterfaceNil() bool
 }

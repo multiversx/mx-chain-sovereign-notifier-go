@@ -20,7 +20,7 @@ var log = logger.GetOrCreate("notifier-sovereign-process")
 
 type sovereignNotifier struct {
 	mutHandler          sync.RWMutex
-	handlers            []process.ExtendedHeaderHandler
+	handlers            []process.HeaderSubscriber
 	subscribedAddresses map[string]struct{}
 	headerV2Creator     block.EmptyBlockCreator
 	marshaller          marshal.Marshalizer
@@ -52,7 +52,7 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 
 	return &sovereignNotifier{
 		subscribedAddresses: subscribedAddresses,
-		handlers:            make([]process.ExtendedHeaderHandler, 0),
+		handlers:            make([]process.HeaderSubscriber, 0),
 		mutHandler:          sync.RWMutex{},
 		headerV2Creator:     block.NewEmptyHeaderV2Creator(),
 		marshaller:          args.Marshaller,
@@ -192,7 +192,7 @@ func (notifier *sovereignNotifier) notifyHandlers(headerHash []byte, header data
 }
 
 // RegisterHandler will register an extended header handler to be notified about incoming headers and miniblocks
-func (notifier *sovereignNotifier) RegisterHandler(handler process.ExtendedHeaderHandler) error {
+func (notifier *sovereignNotifier) RegisterHandler(handler process.HeaderSubscriber) error {
 	if check.IfNil(handler) {
 		return errNilExtendedHeaderHandler
 	}

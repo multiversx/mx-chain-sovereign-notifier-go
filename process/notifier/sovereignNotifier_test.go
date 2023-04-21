@@ -113,14 +113,14 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 
 	saveHeaderCalled1 := false
 	saveHeaderCalled2 := false
-	handler1 := &testscommon.ExtendedHeaderHandlerStub{
+	handler1 := &testscommon.HeaderSubscriberStub{
 		AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
 			require.Equal(t, expectedHeaderHash, headerHash)
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled1 = true
 		},
 	}
-	handler2 := &testscommon.ExtendedHeaderHandlerStub{
+	handler2 := &testscommon.HeaderSubscriberStub{
 		AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
 			require.Equal(t, expectedHeaderHash, headerHash)
 			require.Equal(t, extendedShardHeader, header)
@@ -333,7 +333,7 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 			go func() {
 				defer wg.Done()
 
-				handler := &testscommon.ExtendedHeaderHandlerStub{
+				handler := &testscommon.HeaderSubscriberStub{
 					AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
 						require.Equal(t, expectedHeaderHash, headerHash)
 						require.Equal(t, extendedShardHeader, header)
