@@ -18,7 +18,7 @@ type ShardCoordinator interface {
 	IsInterfaceNil() bool
 }
 
-// HeaderSubscriber defines a subscribed to incoming headers
+// HeaderSubscriber defines a subscriber to incoming headers
 type HeaderSubscriber interface {
 	AddHeader(headerHash []byte, header data.HeaderHandler)
 	IsInterfaceNil() bool

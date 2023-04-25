@@ -4,6 +4,7 @@ import (
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/pubkeyConverter"
 	"github.com/multiversx/mx-chain-core-go/core/sharding"
+	hashingFactory "github.com/multiversx/mx-chain-core-go/hashing/factory"
 	"github.com/multiversx/mx-chain-core-go/marshal/factory"
 	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/client"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
@@ -20,6 +21,7 @@ const (
 // ArgsCreateSovereignNotifier is a struct placeholder for sovereign notifier args
 type ArgsCreateSovereignNotifier struct {
 	MarshallerType      string
+	HasherType          string
 	SubscribedAddresses []string
 	NumOfMainShards     uint32
 }
@@ -27,6 +29,11 @@ type ArgsCreateSovereignNotifier struct {
 // CreateSovereignNotifier creates a sovereign notifier which will notify subscribed handlers about incoming headers
 func CreateSovereignNotifier(args ArgsCreateSovereignNotifier) (process.SovereignNotifier, error) {
 	marshaller, err := factory.NewMarshalizer(args.MarshallerType)
+	if err != nil {
+		return nil, err
+	}
+
+	hasher, err := hashingFactory.NewHasher(args.HasherType)
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +50,7 @@ func CreateSovereignNotifier(args ArgsCreateSovereignNotifier) (process.Sovereig
 
 	argsSovereignNotifier := notifier.ArgsSovereignNotifier{
 		Marshaller:          marshaller,
+		Hasher:              hasher,
 		SubscribedAddresses: subscribedAddresses,
 		ShardCoordinator:    shardCoordinator,
 	}
@@ -88,6 +96,7 @@ func CreateWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 		MarshallerType:      cfg.WebSocketConfig.MarshallerType,
 		SubscribedAddresses: cfg.SubscribedAddresses,
 		NumOfMainShards:     cfg.NumOfMainShards,
+		HasherType:          cfg.WebSocketConfig.HasherType,
 	})
 	if err != nil {
 		return nil, err
