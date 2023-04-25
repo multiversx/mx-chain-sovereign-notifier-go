@@ -194,6 +194,8 @@ func (notifier *sovereignNotifier) notifyHandlers(header data.HeaderHandler) err
 		return err
 	}
 
+	log.Info("notifying shard extended header", "hash", hex.EncodeToString(headerHash))
+
 	notifier.mutHandler.RLock()
 	defer notifier.mutHandler.RUnlock()
 

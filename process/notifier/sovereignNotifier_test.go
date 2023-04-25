@@ -2,6 +2,8 @@ package notifier
 
 import (
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -63,6 +65,14 @@ func TestNewSovereignNotifier(t *testing.T) {
 		args.ShardCoordinator = nil
 		notif, err := NewSovereignNotifier(args)
 		require.Equal(t, errNilShardCoordinator, err)
+		require.Nil(t, notif)
+	})
+
+	t.Run("nil hasher, should return error", func(t *testing.T) {
+		args := createArgs()
+		args.Hasher = nil
+		notif, err := NewSovereignNotifier(args)
+		require.Equal(t, errNilHasher, err)
 		require.Nil(t, notif)
 	})
 
@@ -269,6 +279,36 @@ func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {
 
 		err := sn.Notify(outportBlock)
 		require.NotNil(t, err)
+	})
+
+	t.Run("cannot compute extended header hash", func(t *testing.T) {
+		args := createArgs()
+
+		marshalCt := 0
+		errMarshal := errors.New("error marshal")
+		args.Marshaller = &testscommon.MarshallerStub{
+			MarshalCalled: func(obj interface{}) ([]byte, error) {
+				marshalCt++
+				switch marshalCt {
+				case 1:
+					return json.Marshal(obj)
+				case 2:
+					return nil, errMarshal
+				}
+				return nil, nil
+			},
+		}
+
+		sn, _ := NewSovereignNotifier(args)
+
+		outportBlock := &outport.OutportBlock{
+			BlockData:       createBlockData(args.Marshaller),
+			TransactionPool: &outport.TransactionPool{},
+		}
+
+		err := sn.Notify(outportBlock)
+		require.Equal(t, errMarshal, err)
+		require.Equal(t, 2, marshalCt)
 	})
 }
 
