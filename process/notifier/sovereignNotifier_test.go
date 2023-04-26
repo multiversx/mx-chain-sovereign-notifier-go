@@ -96,6 +96,10 @@ func TestNewSovereignNotifier(t *testing.T) {
 func TestSovereignNotifier_Notify(t *testing.T) {
 	t.Parallel()
 
+	sender1 := []byte("sender1")
+	sender2 := []byte("sender2")
+	sender3 := []byte("sender3")
+
 	addr1 := []byte("addr1")
 	addr2 := []byte("addr2")
 	addr3 := []byte("addr3")
@@ -104,6 +108,8 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	txHash2 := []byte("hash2")
 	txHash3 := []byte("hash3")
 	txHash4 := []byte("hash4")
+	txHash5 := []byte("hash5")
+	txHash6 := []byte("hash6")
 
 	headerV2 := &block.HeaderV2{
 		Header:            &block.Header{},
@@ -116,6 +122,13 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 				TxHashes:        [][]byte{txHash2, txHash3, txHash1},
 				ReceiverShardID: core.SovereignChainShardId,
 				SenderShardID:   0,
+				Type:            block.TxBlock,
+				Reserved:        nil,
+			},
+			{
+				TxHashes:        [][]byte{txHash5, txHash6},
+				ReceiverShardID: core.SovereignChainShardId,
+				SenderShardID:   1,
 				Type:            block.TxBlock,
 				Reserved:        nil,
 			},
@@ -145,6 +158,20 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 		},
 	}
 
+	args.ShardCoordinator = &testscommon.ShardCoordinatorStub{
+		ComputeIdCalled: func(address []byte) uint32 {
+			switch string(address) {
+			case string(sender1), string(sender2):
+				return 0
+			case string(sender3):
+				return 1
+			default:
+				require.Fail(t, "should have only 3 senders")
+				return 0xFF
+			}
+		},
+	}
+
 	sn, _ := NewSovereignNotifier(args)
 	_ = sn.RegisterHandler(handler1)
 	_ = sn.RegisterHandler(handler2)
@@ -163,26 +190,44 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 				hex.EncodeToString(txHash1): {
 					Transaction: &transaction.Transaction{
 						RcvAddr: addr1,
+						SndAddr: sender1,
 					},
 					ExecutionOrder: 3,
 				},
 				hex.EncodeToString(txHash2): {
 					Transaction: &transaction.Transaction{
 						RcvAddr: addr1,
+						SndAddr: sender2,
 					},
 					ExecutionOrder: 1,
 				},
 				hex.EncodeToString(txHash3): {
 					Transaction: &transaction.Transaction{
 						RcvAddr: addr2,
+						SndAddr: sender1,
 					},
 					ExecutionOrder: 2,
 				},
 				hex.EncodeToString(txHash4): {
 					Transaction: &transaction.Transaction{
 						RcvAddr: addr3,
+						SndAddr: sender2,
 					},
 					ExecutionOrder: 0,
+				},
+				hex.EncodeToString(txHash5): {
+					Transaction: &transaction.Transaction{
+						RcvAddr: addr1,
+						SndAddr: sender3,
+					},
+					ExecutionOrder: 0,
+				},
+				hex.EncodeToString(txHash6): {
+					Transaction: &transaction.Transaction{
+						RcvAddr: addr1,
+						SndAddr: sender3,
+					},
+					ExecutionOrder: 3,
 				},
 			},
 		},
