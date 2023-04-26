@@ -128,13 +128,13 @@ func (notifier *sovereignNotifier) createAllIncomingMbs(txPool *outport.Transact
 	}
 
 	// TODO: when specs are defined, we should also handle scrs mbs
-	mbs = append(mbs, txsMb)
+	mbs = append(mbs, txsMb...)
 	return mbs, nil
 }
 
-func (notifier *sovereignNotifier) createIncomingMbsFromTxs(txs map[string]*outport.TxInfo) (*block.MiniBlock, error) {
-	txHashes := make([][]byte, 0)
+func (notifier *sovereignNotifier) createIncomingMbsFromTxs(txs map[string]*outport.TxInfo) ([]*block.MiniBlock, error) {
 	execOrderTxHashMap := make(map[string]uint32)
+	shardIDTxHashMap := make(map[uint32][][]byte)
 
 	for txHash, tx := range txs {
 		receiver := tx.GetTransaction().GetRcvAddr()
@@ -150,21 +150,46 @@ func (notifier *sovereignNotifier) createIncomingMbsFromTxs(txs map[string]*outp
 
 		log.Info("found incoming tx", "tx hash", txHash, "receiver", hex.EncodeToString(receiver))
 
-		txHashes = append(txHashes, hashBytes)
 		execOrderTxHashMap[string(hashBytes)] = tx.GetExecutionOrder()
+
+		sender := tx.GetTransaction().GetSndAddr()
+		senderShardID := notifier.shardCoordinator.ComputeId(sender)
+		shardIDTxHashMap[senderShardID] = append(shardIDTxHashMap[senderShardID], hashBytes)
 	}
 
-	sort.SliceStable(txHashes, func(i, j int) bool {
-		return execOrderTxHashMap[string(txHashes[i])] < execOrderTxHashMap[string(txHashes[j])]
+	return createSortedMbs(execOrderTxHashMap, shardIDTxHashMap, block.TxBlock), nil
+}
+
+func createSortedMbs(
+	execOrderTxHashMap map[string]uint32,
+	shardIDTxHashMap map[uint32][][]byte,
+	mbType block.Type,
+) []*block.MiniBlock {
+	mbs := make([]*block.MiniBlock, 0, len(shardIDTxHashMap))
+
+	for shardID, txHashesInShard := range shardIDTxHashMap {
+		sortTxs(txHashesInShard, execOrderTxHashMap)
+
+		mbs = append(mbs, &block.MiniBlock{
+			TxHashes:        txHashesInShard,
+			ReceiverShardID: core.SovereignChainShardId,
+			SenderShardID:   shardID,
+			Type:            mbType,
+			Reserved:        nil,
+		})
+	}
+
+	sort.SliceStable(mbs, func(i, j int) bool {
+		return mbs[i].SenderShardID < mbs[j].SenderShardID
 	})
 
-	return &block.MiniBlock{
-		TxHashes:        txHashes,
-		ReceiverShardID: core.SovereignChainShardId,
-		SenderShardID:   0, // todo: Compute sender shard id and fill it here
-		Type:            block.TxBlock,
-		Reserved:        nil,
-	}, nil
+	return mbs
+}
+
+func sortTxs(txs [][]byte, execOrderTxHashMap map[string]uint32) {
+	sort.SliceStable(txs, func(i, j int) bool {
+		return execOrderTxHashMap[string(txs[i])] < execOrderTxHashMap[string(txs[j])]
+	})
 }
 
 func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, headerBytes []byte) (*block.HeaderV2, error) {
