@@ -17,3 +17,5 @@ var errNilOutportBlock = errors.New("nil outport block provided")
 var errNilTransactionPool = errors.New("nil transaction pool provided")
 
 var errNilBlockData = errors.New("nil block data provided")
+
+var errNilHasher = errors.New("nil hasher provided")

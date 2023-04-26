@@ -1,14 +1,14 @@
 package process
 
 import (
-	"github.com/multiversx/mx-chain-core-go/data/block"
+	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 )
 
 // SovereignNotifier defines what a sovereign notifier should do
 type SovereignNotifier interface {
 	Notify(finalizedBlock *outport.OutportBlock) error
-	RegisterHandler(handler ExtendedHeaderHandler) error
+	RegisterHandler(handler HeaderSubscriber) error
 	IsInterfaceNil() bool
 }
 
@@ -18,16 +18,16 @@ type ShardCoordinator interface {
 	IsInterfaceNil() bool
 }
 
-// ExtendedHeaderHandler defines what a subscribed handler to SovereignNotifier should do
-type ExtendedHeaderHandler interface {
-	ReceivedExtendedHeader(header *block.ShardHeaderExtended)
+// HeaderSubscriber defines a subscriber to incoming headers
+type HeaderSubscriber interface {
+	AddHeader(headerHash []byte, header data.HeaderHandler)
 	IsInterfaceNil() bool
 }
 
 // WSClient defines what a websocket client should do
 type WSClient interface {
 	Start()
-	Close()
+	Close() error
 }
 
 // Indexer should handle node indexer events

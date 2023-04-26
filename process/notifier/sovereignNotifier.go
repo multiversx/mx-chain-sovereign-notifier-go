@@ -8,8 +8,10 @@ import (
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
+	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
+	"github.com/multiversx/mx-chain-core-go/hashing"
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	logger "github.com/multiversx/mx-chain-logger-go"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
@@ -19,17 +21,19 @@ var log = logger.GetOrCreate("notifier-sovereign-process")
 
 type sovereignNotifier struct {
 	mutHandler          sync.RWMutex
-	handlers            []process.ExtendedHeaderHandler
+	handlers            []process.HeaderSubscriber
 	subscribedAddresses map[string]struct{}
 	headerV2Creator     block.EmptyBlockCreator
 	marshaller          marshal.Marshalizer
 	shardCoordinator    process.ShardCoordinator
+	hasher              hashing.Hasher
 }
 
 // ArgsSovereignNotifier is a struct placeholder for args needed to create a sovereign notifier
 type ArgsSovereignNotifier struct {
 	ShardCoordinator    process.ShardCoordinator
 	Marshaller          marshal.Marshalizer
+	Hasher              hashing.Hasher
 	SubscribedAddresses [][]byte
 }
 
@@ -41,6 +45,9 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 	if check.IfNil(args.ShardCoordinator) {
 		return nil, errNilShardCoordinator
 	}
+	if check.IfNil(args.Hasher) {
+		return nil, errNilHasher
+	}
 
 	subscribedAddresses, err := getAddressesMap(args.SubscribedAddresses)
 	if err != nil {
@@ -51,11 +58,12 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 
 	return &sovereignNotifier{
 		subscribedAddresses: subscribedAddresses,
-		handlers:            make([]process.ExtendedHeaderHandler, 0),
+		handlers:            make([]process.HeaderSubscriber, 0),
 		mutHandler:          sync.RWMutex{},
 		headerV2Creator:     block.NewEmptyHeaderV2Creator(),
 		marshaller:          args.Marshaller,
 		shardCoordinator:    args.ShardCoordinator,
+		hasher:              args.Hasher,
 	}, nil
 }
 
@@ -101,8 +109,7 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 		IncomingMiniBlocks: mbs,
 	}
 
-	notifier.notifyHandlers(extendedHeader)
-	return nil
+	return notifier.notifyHandlers(extendedHeader)
 }
 
 func checkNilOutportBlockFields(outportBlock *outport.OutportBlock) error {
@@ -206,17 +213,26 @@ func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, heade
 	return headerHandler.(*block.HeaderV2), nil
 }
 
-func (notifier *sovereignNotifier) notifyHandlers(extendedHeader *block.ShardHeaderExtended) {
+func (notifier *sovereignNotifier) notifyHandlers(header data.HeaderHandler) error {
+	headerHash, err := core.CalculateHash(notifier.marshaller, notifier.hasher, header)
+	if err != nil {
+		return err
+	}
+
+	log.Info("notifying shard extended header", "hash", hex.EncodeToString(headerHash))
+
 	notifier.mutHandler.RLock()
 	defer notifier.mutHandler.RUnlock()
 
 	for _, handler := range notifier.handlers {
-		handler.ReceivedExtendedHeader(extendedHeader)
+		handler.AddHeader(headerHash, header)
 	}
+
+	return nil
 }
 
 // RegisterHandler will register an extended header handler to be notified about incoming headers and miniblocks
-func (notifier *sovereignNotifier) RegisterHandler(handler process.ExtendedHeaderHandler) error {
+func (notifier *sovereignNotifier) RegisterHandler(handler process.HeaderSubscriber) error {
 	if check.IfNil(handler) {
 		return errNilExtendedHeaderHandler
 	}

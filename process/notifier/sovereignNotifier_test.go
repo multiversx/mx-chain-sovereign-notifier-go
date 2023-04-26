@@ -2,15 +2,19 @@ package notifier
 
 import (
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
+	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/data/transaction"
+	"github.com/multiversx/mx-chain-core-go/hashing/sha256"
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/testscommon"
 	"github.com/stretchr/testify/require"
@@ -21,6 +25,7 @@ func createArgs() ArgsSovereignNotifier {
 		ShardCoordinator:    &testscommon.ShardCoordinatorStub{},
 		Marshaller:          &testscommon.MarshallerMock{},
 		SubscribedAddresses: [][]byte{[]byte("address")},
+		Hasher:              sha256.NewSha256(),
 	}
 }
 
@@ -60,6 +65,14 @@ func TestNewSovereignNotifier(t *testing.T) {
 		args.ShardCoordinator = nil
 		notif, err := NewSovereignNotifier(args)
 		require.Equal(t, errNilShardCoordinator, err)
+		require.Nil(t, notif)
+	})
+
+	t.Run("nil hasher, should return error", func(t *testing.T) {
+		args := createArgs()
+		args.Hasher = nil
+		notif, err := NewSovereignNotifier(args)
+		require.Equal(t, errNilHasher, err)
 		require.Nil(t, notif)
 	})
 
@@ -122,23 +135,29 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 		},
 	}
 
+	args := createArgs()
+	args.SubscribedAddresses = [][]byte{addr1, addr2}
+
+	extendedShardHeaderHash, err := core.CalculateHash(args.Marshaller, args.Hasher, extendedShardHeader)
+	require.Nil(t, err)
+
 	saveHeaderCalled1 := false
 	saveHeaderCalled2 := false
-	handler1 := &testscommon.ExtendedHeaderHandlerStub{
-		ReceivedExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
+	handler1 := &testscommon.HeaderSubscriberStub{
+		AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
+			require.Equal(t, extendedShardHeaderHash, headerHash)
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled1 = true
 		},
 	}
-	handler2 := &testscommon.ExtendedHeaderHandlerStub{
-		ReceivedExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
+	handler2 := &testscommon.HeaderSubscriberStub{
+		AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
+			require.Equal(t, extendedShardHeaderHash, headerHash)
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled2 = true
 		},
 	}
 
-	args := createArgs()
-	args.SubscribedAddresses = [][]byte{addr1, addr2}
 	args.ShardCoordinator = &testscommon.ShardCoordinatorStub{
 		ComputeIdCalled: func(address []byte) uint32 {
 			switch string(address) {
@@ -162,6 +181,7 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 
 	outportBlock := &outport.OutportBlock{
 		BlockData: &outport.BlockData{
+			HeaderHash:  []byte("header hash"),
 			HeaderBytes: headerBytes,
 			HeaderType:  string(core.ShardHeaderV2),
 		},
@@ -305,6 +325,36 @@ func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {
 		err := sn.Notify(outportBlock)
 		require.NotNil(t, err)
 	})
+
+	t.Run("cannot compute extended header hash", func(t *testing.T) {
+		args := createArgs()
+
+		marshalCt := 0
+		errMarshal := errors.New("error marshal")
+		args.Marshaller = &testscommon.MarshallerStub{
+			MarshalCalled: func(obj interface{}) ([]byte, error) {
+				marshalCt++
+				switch marshalCt {
+				case 1:
+					return json.Marshal(obj)
+				case 2:
+					return nil, errMarshal
+				}
+				return nil, nil
+			},
+		}
+
+		sn, _ := NewSovereignNotifier(args)
+
+		outportBlock := &outport.OutportBlock{
+			BlockData:       createBlockData(args.Marshaller),
+			TransactionPool: &outport.TransactionPool{},
+		}
+
+		err := sn.Notify(outportBlock)
+		require.Equal(t, errMarshal, err)
+		require.Equal(t, 2, marshalCt)
+	})
 }
 
 func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
@@ -333,12 +383,17 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 	args := createArgs()
 	args.SubscribedAddresses = [][]byte{addr1}
 
+	extendedShardHeaderHash, err := core.CalculateHash(args.Marshaller, args.Hasher, extendedShardHeader)
+	require.Nil(t, err)
+
 	sn, _ := NewSovereignNotifier(args)
 
 	headerBytes, err := args.Marshaller.Marshal(headerV2)
 	require.Nil(t, err)
+
 	outportBlock := &outport.OutportBlock{
 		BlockData: &outport.BlockData{
+			HeaderHash:  []byte("hash"),
 			HeaderBytes: headerBytes,
 			HeaderType:  string(core.ShardHeaderV2),
 		},
@@ -369,8 +424,9 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 			go func() {
 				defer wg.Done()
 
-				handler := &testscommon.ExtendedHeaderHandlerStub{
-					ReceivedExtendedHeaderCalled: func(header *block.ShardHeaderExtended) {
+				handler := &testscommon.HeaderSubscriberStub{
+					AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
+						require.Equal(t, extendedShardHeaderHash, headerHash)
 						require.Equal(t, extendedShardHeader, header)
 					},
 				}
