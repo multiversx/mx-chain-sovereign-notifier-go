@@ -14,12 +14,17 @@ import (
 	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	"github.com/multiversx/mx-chain-core-go/hashing"
 	"github.com/multiversx/mx-chain-core-go/marshal"
-	shardProcess "github.com/multiversx/mx-chain-go/process"
 	logger "github.com/multiversx/mx-chain-logger-go"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 )
 
 var log = logger.GetOrCreate("notifier-sovereign-process")
+
+type txHandlerInfo struct {
+	tx            data.TransactionHandler
+	senderShardID uint32
+	hash          []byte
+}
 
 type sovereignNotifier struct {
 	mutHeaderHandlers   sync.RWMutex
@@ -100,7 +105,7 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 		return err
 	}
 
-	mbs, err := notifier.createAllIncomingMbs(outportBlock.TransactionPool)
+	mbs, txs, err := notifier.createAllIncomingMbsAndTxs(outportBlock.TransactionPool)
 	if err != nil {
 		return err
 	}
@@ -115,7 +120,13 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 		IncomingMiniBlocks: mbs,
 	}
 
-	return notifier.notifyHeaderSubscribers(extendedHeader)
+	err = notifier.notifyHeaderSubscribers(extendedHeader)
+	if err != nil {
+		return err
+	}
+
+	notifier.notifyTxSubscribers(txs)
+	return nil
 }
 
 func checkNilOutportBlockFields(outportBlock *outport.OutportBlock) error {
@@ -132,20 +143,22 @@ func checkNilOutportBlockFields(outportBlock *outport.OutportBlock) error {
 	return nil
 }
 
-func (notifier *sovereignNotifier) createAllIncomingMbs(txPool *outport.TransactionPool) ([]*block.MiniBlock, error) {
+func (notifier *sovereignNotifier) createAllIncomingMbsAndTxs(txPool *outport.TransactionPool) ([]*block.MiniBlock, []*txHandlerInfo, error) {
 	mbs := make([]*block.MiniBlock, 0)
+	txs := make([]*txHandlerInfo, 0)
 
-	txsMb, _, err := notifier.createIncomingMbsFromTxs(txPool.Transactions)
+	txMbs, incomingTxs, err := notifier.createIncomingMbsAndTxs(txPool.Transactions)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	txs = append(txs, createTxHandlersInfo(incomingTxs, txMbs)...)
 
 	// TODO: when specs are defined, we should also handle scrs mbs
-	mbs = append(mbs, txsMb...)
-	return mbs, nil
+	mbs = append(mbs, txMbs...)
+	return mbs, txs, nil
 }
 
-func (notifier *sovereignNotifier) createIncomingMbsFromTxs(txs map[string]*outport.TxInfo) ([]*block.MiniBlock, map[string]*transaction.Transaction, error) {
+func (notifier *sovereignNotifier) createIncomingMbsAndTxs(txs map[string]*outport.TxInfo) ([]*block.MiniBlock, map[string]*transaction.Transaction, error) {
 	execOrderTxHashMap := make(map[string]uint32)
 	shardIDTxHashMap := make(map[uint32][][]byte)
 	incomingTxs := make(map[string]*transaction.Transaction)
@@ -202,6 +215,22 @@ func createSortedMbs(
 	return mbs
 }
 
+func createTxHandlersInfo(txs map[string]*transaction.Transaction, mbs []*block.MiniBlock) []*txHandlerInfo {
+	ret := make([]*txHandlerInfo, 0, len(txs))
+
+	for _, mb := range mbs {
+		for _, txHash := range mb.TxHashes {
+			ret = append(ret, &txHandlerInfo{
+				tx:            txs[string(txHash)],
+				senderShardID: mb.SenderShardID,
+				hash:          txHash,
+			})
+		}
+	}
+
+	return ret
+}
+
 func sortTxs(txs [][]byte, execOrderTxHashMap map[string]uint32) {
 	sort.SliceStable(txs, func(i, j int) bool {
 		return execOrderTxHashMap[string(txs[i])] < execOrderTxHashMap[string(txs[j])]
@@ -240,7 +269,7 @@ func (notifier *sovereignNotifier) notifyHeaderSubscribers(header data.HeaderHan
 	return nil
 }
 
-func (notifier *sovereignNotifier) notifyTxSubscribers(txs map[string]*transaction.Transaction) {
+func (notifier *sovereignNotifier) notifyTxSubscribers(txs []*txHandlerInfo) {
 	notifier.mutTxHandlers.RLock()
 	defer notifier.mutTxHandlers.RUnlock()
 
@@ -249,10 +278,10 @@ func (notifier *sovereignNotifier) notifyTxSubscribers(txs map[string]*transacti
 	}
 }
 
-func notifyTxSubscriber(subscriber process.TransactionSubscriber, txs map[string]*transaction.Transaction) {
-	for txHashStr, tx := range txs {
-		cacheID := shardProcess.ShardCacherIdentifier(0, core.SovereignChainShardId) // TODO: Decided here senderShardID
-		subscriber.AddData([]byte(txHashStr), tx, tx.Size(), cacheID)
+func notifyTxSubscriber(subscriber process.TransactionSubscriber, txs []*txHandlerInfo) {
+	for _, txInfo := range txs {
+		cacheID := fmt.Sprintf("%d_%d", txInfo.senderShardID, core.SovereignChainShardId) //shardProcess.ShardCacherIdentifier(txInfo.senderShardID, core.SovereignChainShardId)
+		subscriber.AddData(txInfo.hash, txInfo.tx, txInfo.tx.Size(), cacheID)
 	}
 }
 
