@@ -24,6 +24,12 @@ type HeaderSubscriber interface {
 	IsInterfaceNil() bool
 }
 
+// TransactionSubscriber defines a subscriber to incoming transactions
+type TransactionSubscriber interface {
+	AddData(key []byte, data interface{}, sizeInBytes int, cacheId string)
+	IsInterfaceNil() bool
+}
+
 // WSClient defines what a websocket client should do
 type WSClient interface {
 	Start()
