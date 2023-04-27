@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
-	"sync"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -27,15 +26,12 @@ type txHandlerInfo struct {
 }
 
 type sovereignNotifier struct {
-	mutHeaderHandlers   sync.RWMutex
-	mutTxHandlers       sync.RWMutex
-	headerSubscribers   []process.HeaderSubscriber
-	txSubscribers       []process.TransactionSubscriber
+	headerNotifier      *headersNotifier
+	txsNotifier         *txsNotifier
 	subscribedAddresses map[string]struct{}
 	headerV2Creator     block.EmptyBlockCreator
 	marshaller          marshal.Marshalizer
 	shardCoordinator    process.ShardCoordinator
-	hasher              hashing.Hasher
 }
 
 // ArgsSovereignNotifier is a struct placeholder for args needed to create a sovereign notifier
@@ -66,15 +62,12 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 	log.Debug("received config", "subscribed addresses", args.SubscribedAddresses)
 
 	return &sovereignNotifier{
+		headerNotifier:      newHeadersNotifier(args.Marshaller, args.Hasher),
+		txsNotifier:         newTxsNotifier(),
 		subscribedAddresses: subscribedAddresses,
-		headerSubscribers:   make([]process.HeaderSubscriber, 0),
-		txSubscribers:       make([]process.TransactionSubscriber, 0),
-		mutHeaderHandlers:   sync.RWMutex{},
-		mutTxHandlers:       sync.RWMutex{},
 		headerV2Creator:     block.NewEmptyHeaderV2Creator(),
 		marshaller:          args.Marshaller,
 		shardCoordinator:    args.ShardCoordinator,
-		hasher:              args.Hasher,
 	}, nil
 }
 
@@ -120,12 +113,12 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 		IncomingMiniBlocks: mbs,
 	}
 
-	err = notifier.notifyHeaderSubscribers(extendedHeader)
+	err = notifier.headerNotifier.notifyHeaderSubscribers(extendedHeader)
 	if err != nil {
 		return err
 	}
 
-	notifier.notifyTxSubscribers(txs)
+	notifier.txsNotifier.notifyTxSubscribers(txs)
 	return nil
 }
 
@@ -177,13 +170,12 @@ func (notifier *sovereignNotifier) createIncomingMbsAndTxs(txs map[string]*outpo
 
 		log.Info("found incoming tx", "tx hash", txHash, "receiver", hex.EncodeToString(receiver))
 
+		incomingTxs[string(hashBytes)] = tx.GetTransaction()
 		execOrderTxHashMap[string(hashBytes)] = tx.GetExecutionOrder()
 
 		sender := tx.GetTransaction().GetSndAddr()
 		senderShardID := notifier.shardCoordinator.ComputeId(sender)
 		shardIDTxHashMap[senderShardID] = append(shardIDTxHashMap[senderShardID], hashBytes)
-
-		incomingTxs[string(hashBytes)] = tx.GetTransaction()
 	}
 
 	return createSortedMbs(execOrderTxHashMap, shardIDTxHashMap, block.TxBlock), incomingTxs, nil
@@ -251,64 +243,14 @@ func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, heade
 	return headerHandler.(*block.HeaderV2), nil
 }
 
-func (notifier *sovereignNotifier) notifyHeaderSubscribers(header data.HeaderHandler) error {
-	headerHash, err := core.CalculateHash(notifier.marshaller, notifier.hasher, header)
-	if err != nil {
-		return err
-	}
-
-	log.Info("notifying shard extended header", "hash", hex.EncodeToString(headerHash))
-
-	notifier.mutHeaderHandlers.RLock()
-	defer notifier.mutHeaderHandlers.RUnlock()
-
-	for _, handler := range notifier.headerSubscribers {
-		handler.AddHeader(headerHash, header)
-	}
-
-	return nil
-}
-
-func (notifier *sovereignNotifier) notifyTxSubscribers(txs []*txHandlerInfo) {
-	notifier.mutTxHandlers.RLock()
-	defer notifier.mutTxHandlers.RUnlock()
-
-	for _, subscriber := range notifier.txSubscribers {
-		notifyTxSubscriber(subscriber, txs)
-	}
-}
-
-func notifyTxSubscriber(subscriber process.TransactionSubscriber, txs []*txHandlerInfo) {
-	for _, txInfo := range txs {
-		cacheID := fmt.Sprintf("%d_%d", txInfo.senderShardID, core.SovereignChainShardId) //shardProcess.ShardCacherIdentifier(txInfo.senderShardID, core.SovereignChainShardId)
-		subscriber.AddData(txInfo.hash, txInfo.tx, txInfo.tx.Size(), cacheID)
-	}
-}
-
 // RegisterHandler will register an extended header handler to be notified about incoming headers and miniblocks
 func (notifier *sovereignNotifier) RegisterHandler(handler process.HeaderSubscriber) error {
-	if check.IfNil(handler) {
-		return errNilExtendedHeaderHandler
-	}
-
-	notifier.mutHeaderHandlers.Lock()
-	notifier.headerSubscribers = append(notifier.headerSubscribers, handler)
-	notifier.mutHeaderHandlers.Unlock()
-
-	return nil
+	return notifier.headerNotifier.registerSubscriber(handler)
 }
 
 // RegisterTxSubscriber will register a tx subscriber to be notified about incoming transactions
 func (notifier *sovereignNotifier) RegisterTxSubscriber(handler process.TransactionSubscriber) error {
-	if check.IfNil(handler) {
-		return errNilExtendedHeaderHandler
-	}
-
-	notifier.mutTxHandlers.Lock()
-	notifier.txSubscribers = append(notifier.txSubscribers, handler)
-	notifier.mutTxHandlers.Unlock()
-
-	return nil
+	return notifier.txsNotifier.registerSubscriber(handler)
 }
 
 // IsInterfaceNil checks if the underlying pointer is nil

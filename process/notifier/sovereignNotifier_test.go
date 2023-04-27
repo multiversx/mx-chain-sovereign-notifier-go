@@ -441,7 +441,7 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 
 	wg.Wait()
 
-	sn.mutHeaderHandlers.RLock()
-	defer sn.mutHeaderHandlers.RUnlock()
-	require.Equal(t, n/2, len(sn.headerSubscribers))
+	sn.headerNotifier.mutSubscribers.RLock()
+	defer sn.headerNotifier.mutSubscribers.RUnlock()
+	require.Equal(t, n/2, len(sn.headerNotifier.subscribers))
 }
