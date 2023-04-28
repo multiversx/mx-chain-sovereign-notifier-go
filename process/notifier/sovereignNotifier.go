@@ -10,7 +10,6 @@ import (
 	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
-	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	"github.com/multiversx/mx-chain-core-go/hashing"
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	logger "github.com/multiversx/mx-chain-logger-go"
@@ -151,10 +150,10 @@ func (notifier *sovereignNotifier) createAllIncomingMbsAndTxs(txPool *outport.Tr
 	return mbs, txs, nil
 }
 
-func (notifier *sovereignNotifier) createIncomingMbsAndTxs(txs map[string]*outport.TxInfo) ([]*block.MiniBlock, map[string]*transaction.Transaction, error) {
+func (notifier *sovereignNotifier) createIncomingMbsAndTxs(txs map[string]*outport.TxInfo) ([]*block.MiniBlock, map[string]data.TransactionHandler, error) {
 	execOrderTxHashMap := make(map[string]uint32)
 	shardIDTxHashMap := make(map[uint32][][]byte)
-	incomingTxs := make(map[string]*transaction.Transaction)
+	incomingTxs := make(map[string]data.TransactionHandler)
 
 	for txHash, tx := range txs {
 		receiver := tx.GetTransaction().GetRcvAddr()
@@ -207,7 +206,7 @@ func createSortedMbs(
 	return mbs
 }
 
-func createTxHandlersInfo(txs map[string]*transaction.Transaction, mbs []*block.MiniBlock) []*txHandlerInfo {
+func createTxHandlersInfo(txs map[string]data.TransactionHandler, mbs []*block.MiniBlock) []*txHandlerInfo {
 	ret := make([]*txHandlerInfo, 0, len(txs))
 
 	for _, mb := range mbs {
