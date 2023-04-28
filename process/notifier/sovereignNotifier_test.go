@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -121,16 +122,16 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 			{
 				TxHashes:        [][]byte{txHash2, txHash3, txHash1},
 				ReceiverShardID: core.SovereignChainShardId,
-				SenderShardID:   0,
+				SenderShardID:   core.MainChainShardId,
 				Type:            block.TxBlock,
-				Reserved:        nil,
+				Reserved:        []byte(fmt.Sprintf("%d", 0)),
 			},
 			{
 				TxHashes:        [][]byte{txHash5, txHash6},
 				ReceiverShardID: core.SovereignChainShardId,
-				SenderShardID:   1,
+				SenderShardID:   core.MainChainShardId,
 				Type:            block.TxBlock,
-				Reserved:        nil,
+				Reserved:        []byte(fmt.Sprintf("%d", 1)),
 			},
 		},
 	}
@@ -373,9 +374,9 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 			{
 				TxHashes:        [][]byte{txHash1},
 				ReceiverShardID: core.SovereignChainShardId,
-				SenderShardID:   0,
+				SenderShardID:   core.MainChainShardId,
 				Type:            block.TxBlock,
-				Reserved:        nil,
+				Reserved:        []byte(fmt.Sprintf("%d", 0)),
 			},
 		},
 	}

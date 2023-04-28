@@ -1,6 +1,7 @@
 package notifier
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"sort"
@@ -193,14 +194,14 @@ func createSortedMbs(
 		mbs = append(mbs, &block.MiniBlock{
 			TxHashes:        txHashesInShard,
 			ReceiverShardID: core.SovereignChainShardId,
-			SenderShardID:   shardID,
+			SenderShardID:   core.MainChainShardId,
 			Type:            mbType,
-			Reserved:        nil,
+			Reserved:        []byte(fmt.Sprintf("%d", shardID)),
 		})
 	}
 
 	sort.SliceStable(mbs, func(i, j int) bool {
-		return mbs[i].SenderShardID < mbs[j].SenderShardID
+		return bytes.Compare(mbs[i].Reserved, mbs[j].Reserved) <= 0
 	})
 
 	return mbs
