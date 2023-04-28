@@ -173,8 +173,8 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	}
 
 	sn, _ := NewSovereignNotifier(args)
-	_ = sn.RegisterHandler(handler1)
-	_ = sn.RegisterHandler(handler2)
+	_ = sn.RegisterHeaderSubscriber(handler1)
+	_ = sn.RegisterHeaderSubscriber(handler2)
 
 	headerBytes, err := args.Marshaller.Marshal(headerV2)
 	require.Nil(t, err)
@@ -246,7 +246,7 @@ func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {
 		args := createArgs()
 		sn, _ := NewSovereignNotifier(args)
 
-		err := sn.RegisterHandler(nil)
+		err := sn.RegisterHeaderSubscriber(nil)
 		require.Equal(t, errNilExtendedHeaderHandler, err)
 	})
 
@@ -431,7 +431,7 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 					},
 				}
 
-				errRegister := sn.RegisterHandler(handler)
+				errRegister := sn.RegisterHeaderSubscriber(handler)
 				require.Nil(t, errRegister)
 			}()
 		default:

@@ -8,7 +8,8 @@ import (
 // SovereignNotifier defines what a sovereign notifier should do
 type SovereignNotifier interface {
 	Notify(finalizedBlock *outport.OutportBlock) error
-	RegisterHandler(handler HeaderSubscriber) error
+	RegisterHeaderSubscriber(handler HeaderSubscriber) error
+	RegisterTxSubscriber(handler TransactionSubscriber) error
 	IsInterfaceNil() bool
 }
 

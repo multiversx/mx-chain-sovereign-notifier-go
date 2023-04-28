@@ -7,8 +7,8 @@ import (
 
 // SovereignNotifierStub -
 type SovereignNotifierStub struct {
-	NotifyCalled          func(finalizedBlock *outport.OutportBlock) error
-	RegisterHandlerCalled func(handler process.HeaderSubscriber) error
+	NotifyCalled                   func(finalizedBlock *outport.OutportBlock) error
+	RegisterHeaderSubscriberCalled func(handler process.HeaderSubscriber) error
 }
 
 // Notify -
@@ -20,12 +20,16 @@ func (sn *SovereignNotifierStub) Notify(finalizedBlock *outport.OutportBlock) er
 	return nil
 }
 
-// RegisterHandler -
-func (sn *SovereignNotifierStub) RegisterHandler(handler process.HeaderSubscriber) error {
-	if sn.RegisterHandlerCalled != nil {
-		return sn.RegisterHandlerCalled(handler)
+// RegisterHeaderSubscriber -
+func (sn *SovereignNotifierStub) RegisterHeaderSubscriber(handler process.HeaderSubscriber) error {
+	if sn.RegisterHeaderSubscriberCalled != nil {
+		return sn.RegisterHeaderSubscriberCalled(handler)
 	}
 
+	return nil
+}
+
+func (sn *SovereignNotifierStub) RegisterTxSubscriber(_ process.TransactionSubscriber) error {
 	return nil
 }
 
