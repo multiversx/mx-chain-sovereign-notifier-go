@@ -243,7 +243,7 @@ func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, heade
 	return headerHandler.(*block.HeaderV2), nil
 }
 
-// RegisterHeaderSubscriber will register an extended header handler to be notified about incoming headers and miniblocks
+// RegisterHeaderSubscriber will register a header subscriber to be notified about incoming headers and miniblocks
 func (notifier *sovereignNotifier) RegisterHeaderSubscriber(handler process.HeaderSubscriber) error {
 	return notifier.headerNotifier.registerSubscriber(handler)
 }
