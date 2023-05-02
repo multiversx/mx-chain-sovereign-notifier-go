@@ -112,6 +112,61 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	txHash5 := []byte("hash5")
 	txHash6 := []byte("hash6")
 
+	txs := []*transaction.Transaction{
+		{
+			RcvAddr: addr1,
+			SndAddr: sender1,
+		},
+		{
+			RcvAddr: addr1,
+			SndAddr: sender2,
+		},
+		{
+			RcvAddr: addr2,
+			SndAddr: sender1,
+		},
+		{
+			RcvAddr: addr3,
+			SndAddr: sender2,
+		},
+		{
+			RcvAddr: addr1,
+			SndAddr: sender3,
+		},
+		{
+			RcvAddr: addr1,
+			SndAddr: sender3,
+		},
+	}
+
+	incomingOrderedTxs := map[int]*txHandlerInfo{
+		0: {
+			tx:            txs[1],
+			senderShardID: 0,
+			hash:          txHash2,
+		},
+		1: {
+			tx:            txs[2],
+			senderShardID: 0,
+			hash:          txHash3,
+		},
+		2: {
+			tx:            txs[0],
+			senderShardID: 0,
+			hash:          txHash1,
+		},
+		3: {
+			tx:            txs[4],
+			senderShardID: 0,
+			hash:          txHash5,
+		},
+		4: {
+			tx:            txs[5],
+			senderShardID: 0,
+			hash:          txHash6,
+		},
+	}
+
 	headerV2 := &block.HeaderV2{
 		Header:            &block.Header{},
 		ScheduledRootHash: []byte("root hash"),
@@ -144,18 +199,45 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 
 	saveHeaderCalled1 := false
 	saveHeaderCalled2 := false
-	handler1 := &testscommon.HeaderSubscriberStub{
+	headerSub1 := &testscommon.HeaderSubscriberStub{
 		AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
 			require.Equal(t, extendedShardHeaderHash, headerHash)
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled1 = true
 		},
 	}
-	handler2 := &testscommon.HeaderSubscriberStub{
+	headerSub2 := &testscommon.HeaderSubscriberStub{
 		AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
 			require.Equal(t, extendedShardHeaderHash, headerHash)
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled2 = true
+		},
+	}
+
+	txCount1 := 0
+	txCount2 := 0
+	txSub1 := &testscommon.TransactionSubscriberStub{
+		AddDataCalled: func(key []byte, data interface{}, sizeInBytes int, cacheId string) {
+			require.Equal(t, key, incomingOrderedTxs[txCount1].hash)
+			require.Equal(t, data, incomingOrderedTxs[txCount1].tx)
+			require.Equal(t, sizeInBytes, incomingOrderedTxs[txCount1].tx.Size())
+
+			expectedCacheID := fmt.Sprintf("%d_%d", core.MainChainShardId, core.SovereignChainShardId)
+			require.Equal(t, expectedCacheID, cacheId)
+
+			txCount1++
+		},
+	}
+	txSub2 := &testscommon.TransactionSubscriberStub{
+		AddDataCalled: func(key []byte, data interface{}, sizeInBytes int, cacheId string) {
+			require.Equal(t, key, incomingOrderedTxs[txCount2].hash)
+			require.Equal(t, data, incomingOrderedTxs[txCount2].tx)
+			require.Equal(t, sizeInBytes, incomingOrderedTxs[txCount2].tx.Size())
+
+			expectedCacheID := fmt.Sprintf("%d_%d", core.MainChainShardId, core.SovereignChainShardId)
+			require.Equal(t, expectedCacheID, cacheId)
+
+			txCount2++
 		},
 	}
 
@@ -174,8 +256,11 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	}
 
 	sn, _ := NewSovereignNotifier(args)
-	_ = sn.RegisterHeaderSubscriber(handler1)
-	_ = sn.RegisterHeaderSubscriber(handler2)
+	_ = sn.RegisterHeaderSubscriber(headerSub1)
+	_ = sn.RegisterHeaderSubscriber(headerSub2)
+
+	_ = sn.RegisterTxSubscriber(txSub1)
+	_ = sn.RegisterTxSubscriber(txSub2)
 
 	headerBytes, err := args.Marshaller.Marshal(headerV2)
 	require.Nil(t, err)
@@ -189,45 +274,27 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 		TransactionPool: &outport.TransactionPool{
 			Transactions: map[string]*outport.TxInfo{
 				hex.EncodeToString(txHash1): {
-					Transaction: &transaction.Transaction{
-						RcvAddr: addr1,
-						SndAddr: sender1,
-					},
+					Transaction:    txs[0],
 					ExecutionOrder: 3,
 				},
 				hex.EncodeToString(txHash2): {
-					Transaction: &transaction.Transaction{
-						RcvAddr: addr1,
-						SndAddr: sender2,
-					},
+					Transaction:    txs[1],
 					ExecutionOrder: 1,
 				},
 				hex.EncodeToString(txHash3): {
-					Transaction: &transaction.Transaction{
-						RcvAddr: addr2,
-						SndAddr: sender1,
-					},
+					Transaction:    txs[2],
 					ExecutionOrder: 2,
 				},
 				hex.EncodeToString(txHash4): {
-					Transaction: &transaction.Transaction{
-						RcvAddr: addr3,
-						SndAddr: sender2,
-					},
+					Transaction:    txs[3],
 					ExecutionOrder: 0,
 				},
 				hex.EncodeToString(txHash5): {
-					Transaction: &transaction.Transaction{
-						RcvAddr: addr1,
-						SndAddr: sender3,
-					},
+					Transaction:    txs[4],
 					ExecutionOrder: 0,
 				},
 				hex.EncodeToString(txHash6): {
-					Transaction: &transaction.Transaction{
-						RcvAddr: addr1,
-						SndAddr: sender3,
-					},
+					Transaction:    txs[5],
 					ExecutionOrder: 3,
 				},
 			},
@@ -238,6 +305,8 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	require.Nil(t, err)
 	require.True(t, saveHeaderCalled1)
 	require.True(t, saveHeaderCalled2)
+	require.Equal(t, len(incomingOrderedTxs), txCount1)
+	require.Equal(t, len(incomingOrderedTxs), txCount2)
 }
 
 func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {

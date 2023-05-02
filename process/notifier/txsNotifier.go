@@ -37,14 +37,18 @@ func (tn *txsNotifier) notifyTxSubscribers(txs []*txHandlerInfo) {
 	tn.mutSubscribers.RLock()
 	defer tn.mutSubscribers.RUnlock()
 
+	log.Info("notifying incoming txs", "num txs", len(txs))
+
 	for _, subscriber := range tn.subscribers {
 		notifyTxSubscriber(subscriber, txs)
 	}
 }
 
 func notifyTxSubscriber(subscriber process.TransactionSubscriber, txs []*txHandlerInfo) {
+	// TODO: Use real sender shard ID once sovereign shard can accept it (nodes coordinator refactor)
+	//cacheID := fmt.Sprintf("%d_%d", txInfo.senderShardID, core.SovereignChainShardId)
+	cacheID := fmt.Sprintf("%d_%d", core.MainChainShardId, core.SovereignChainShardId)
 	for _, txInfo := range txs {
-		cacheID := fmt.Sprintf("%d_%d", txInfo.senderShardID, core.SovereignChainShardId)
 		subscriber.AddData(txInfo.hash, txInfo.tx, txInfo.tx.Size(), cacheID)
 	}
 }
