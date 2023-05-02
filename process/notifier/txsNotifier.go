@@ -23,7 +23,7 @@ func newTxsNotifier() *txsNotifier {
 
 func (tn *txsNotifier) registerSubscriber(handler process.TransactionSubscriber) error {
 	if check.IfNil(handler) {
-		return errNilExtendedHeaderHandler
+		return errNilTxSubscriber
 	}
 
 	tn.mutSubscribers.Lock()

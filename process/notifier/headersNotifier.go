@@ -30,7 +30,7 @@ func newHeadersNotifier(marshaller marshal.Marshalizer, hasher hashing.Hasher) *
 
 func (hn *headersNotifier) registerSubscriber(handler process.HeaderSubscriber) error {
 	if check.IfNil(handler) {
-		return errNilExtendedHeaderHandler
+		return errNilHeaderSubscriber
 	}
 
 	hn.mutSubscribers.Lock()

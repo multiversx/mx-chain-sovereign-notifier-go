@@ -312,12 +312,20 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {
 	t.Parallel()
 
-	t.Run("register invalid extended header handler", func(t *testing.T) {
+	t.Run("register invalid header subscriber", func(t *testing.T) {
 		args := createArgs()
 		sn, _ := NewSovereignNotifier(args)
 
 		err := sn.RegisterHeaderSubscriber(nil)
-		require.Equal(t, errNilExtendedHeaderHandler, err)
+		require.Equal(t, errNilHeaderSubscriber, err)
+	})
+
+	t.Run("register invalid tx subscriber", func(t *testing.T) {
+		args := createArgs()
+		sn, _ := NewSovereignNotifier(args)
+
+		err := sn.RegisterTxSubscriber(nil)
+		require.Equal(t, errNilTxSubscriber, err)
 	})
 
 	t.Run("notify nil outport block fields", func(t *testing.T) {

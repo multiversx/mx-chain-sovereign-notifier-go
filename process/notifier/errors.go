@@ -8,7 +8,9 @@ var errNoSubscribedAddresses = errors.New("no subscribed addresses provided")
 
 var errDuplicateSubscribedAddresses = errors.New("duplicate subscribed addresses provided")
 
-var errNilExtendedHeaderHandler = errors.New("nil extended header handler provided")
+var errNilHeaderSubscriber = errors.New("nil header subscriber provided")
+
+var errNilTxSubscriber = errors.New("nil transaction subscriber provided")
 
 var errInvalidHeaderTypeReceived = errors.New("received invalid header type")
 
