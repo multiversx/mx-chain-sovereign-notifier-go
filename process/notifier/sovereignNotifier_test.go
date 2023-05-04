@@ -10,9 +10,9 @@ import (
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
-	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
+	"github.com/multiversx/mx-chain-core-go/data/sovereign"
 	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	"github.com/multiversx/mx-chain-core-go/hashing/sha256"
 	"github.com/multiversx/mx-chain-core-go/marshal"
@@ -144,14 +144,14 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	saveHeaderCalled1 := false
 	saveHeaderCalled2 := false
 	handler1 := &testscommon.HeaderSubscriberStub{
-		AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
+		AddHeaderCalled: func(headerHash []byte, header sovereign.IncomingHeaderHandler) {
 			require.Equal(t, extendedShardHeaderHash, headerHash)
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled1 = true
 		},
 	}
 	handler2 := &testscommon.HeaderSubscriberStub{
-		AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
+		AddHeaderCalled: func(headerHash []byte, header sovereign.IncomingHeaderHandler) {
 			require.Equal(t, extendedShardHeaderHash, headerHash)
 			require.Equal(t, extendedShardHeader, header)
 			saveHeaderCalled2 = true
@@ -425,7 +425,7 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 				defer wg.Done()
 
 				handler := &testscommon.HeaderSubscriberStub{
-					AddHeaderCalled: func(headerHash []byte, header data.HeaderHandler) {
+					AddHeaderCalled: func(headerHash []byte, header sovereign.IncomingHeaderHandler) {
 						require.Equal(t, extendedShardHeaderHash, headerHash)
 						require.Equal(t, extendedShardHeader, header)
 					},

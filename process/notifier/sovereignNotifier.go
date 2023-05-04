@@ -1,9 +1,9 @@
 package notifier
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
-	"sort"
 	"sync"
 
 	"github.com/multiversx/mx-chain-core-go/core"
@@ -11,6 +11,8 @@ import (
 	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
+	"github.com/multiversx/mx-chain-core-go/data/sovereign"
+	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	"github.com/multiversx/mx-chain-core-go/hashing"
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	logger "github.com/multiversx/mx-chain-logger-go"
@@ -21,7 +23,7 @@ var log = logger.GetOrCreate("notifier-sovereign-process")
 
 type sovereignNotifier struct {
 	mutHandler          sync.RWMutex
-	handlers            []process.HeaderSubscriber
+	handlers            []process.IncomingHeaderSubscriber
 	subscribedAddresses map[string]struct{}
 	headerV2Creator     block.EmptyBlockCreator
 	marshaller          marshal.Marshalizer
@@ -58,7 +60,7 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 
 	return &sovereignNotifier{
 		subscribedAddresses: subscribedAddresses,
-		handlers:            make([]process.HeaderSubscriber, 0),
+		handlers:            make([]process.IncomingHeaderSubscriber, 0),
 		mutHandler:          sync.RWMutex{},
 		headerV2Creator:     block.NewEmptyHeaderV2Creator(),
 		marshaller:          args.Marshaller,
@@ -94,19 +96,14 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 		return err
 	}
 
-	mbs, err := notifier.createAllIncomingMbs(outportBlock.TransactionPool)
-	if err != nil {
-		return err
-	}
-
 	headerV2, err := notifier.getHeaderV2(core.HeaderType(outportBlock.BlockData.HeaderType), outportBlock.BlockData.HeaderBytes)
 	if err != nil {
 		return err
 	}
 
-	extendedHeader := &block.ShardHeaderExtended{
-		Header:             headerV2,
-		IncomingMiniBlocks: mbs,
+	extendedHeader := &sovereign.IncomingHeader{
+		Header:       headerV2,
+		IncomingLogs: notifier.createIncomingLogs(outportBlock.TransactionPool.Logs),
 	}
 
 	return notifier.notifyHandlers(extendedHeader)
@@ -126,77 +123,37 @@ func checkNilOutportBlockFields(outportBlock *outport.OutportBlock) error {
 	return nil
 }
 
-func (notifier *sovereignNotifier) createAllIncomingMbs(txPool *outport.TransactionPool) ([]*block.MiniBlock, error) {
-	mbs := make([]*block.MiniBlock, 0)
+func (notifier *sovereignNotifier) createIncomingLogs(logsData []*outport.LogData) []*transaction.Log {
+	incomingLogs := make([]*transaction.Log, 0)
 
-	txsMb, err := notifier.createIncomingMbsFromTxs(txPool.Transactions)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: when specs are defined, we should also handle scrs mbs
-	mbs = append(mbs, txsMb...)
-	return mbs, nil
-}
-
-func (notifier *sovereignNotifier) createIncomingMbsFromTxs(txs map[string]*outport.TxInfo) ([]*block.MiniBlock, error) {
-	execOrderTxHashMap := make(map[string]uint32)
-	shardIDTxHashMap := make(map[uint32][][]byte)
-
-	for txHash, tx := range txs {
-		receiver := tx.GetTransaction().GetRcvAddr()
+	for _, logData := range logsData {
+		currLog := logData.GetLog()
+		receiver := currLog.GetAddress()
 		_, found := notifier.subscribedAddresses[string(receiver)]
 		if !found {
 			continue
 		}
 
-		hashBytes, err := hex.DecodeString(txHash)
-		if err != nil {
-			return nil, fmt.Errorf("%w, hash: %s", err, txHash)
+		events := currLog.GetLogEvents()
+		if !eventsContainIdentifier(events, []byte("deposit")) {
+			continue
 		}
 
-		log.Info("found incoming tx", "tx hash", txHash, "receiver", hex.EncodeToString(receiver))
-
-		execOrderTxHashMap[string(hashBytes)] = tx.GetExecutionOrder()
-
-		sender := tx.GetTransaction().GetSndAddr()
-		senderShardID := notifier.shardCoordinator.ComputeId(sender)
-		shardIDTxHashMap[senderShardID] = append(shardIDTxHashMap[senderShardID], hashBytes)
+		incomingLogs = append(incomingLogs, currLog)
+		log.Info("found incoming log", "tx hash", logData.TxHash, "receiver", hex.EncodeToString(receiver))
 	}
 
-	return createSortedMbs(execOrderTxHashMap, shardIDTxHashMap, block.TxBlock), nil
+	return incomingLogs
 }
 
-func createSortedMbs(
-	execOrderTxHashMap map[string]uint32,
-	shardIDTxHashMap map[uint32][][]byte,
-	mbType block.Type,
-) []*block.MiniBlock {
-	mbs := make([]*block.MiniBlock, 0, len(shardIDTxHashMap))
-
-	for shardID, txHashesInShard := range shardIDTxHashMap {
-		sortTxs(txHashesInShard, execOrderTxHashMap)
-
-		mbs = append(mbs, &block.MiniBlock{
-			TxHashes:        txHashesInShard,
-			ReceiverShardID: core.SovereignChainShardId,
-			SenderShardID:   shardID,
-			Type:            mbType,
-			Reserved:        nil,
-		})
+func eventsContainIdentifier(events []data.EventHandler, identifier []byte) bool {
+	for _, event := range events {
+		if bytes.Compare(event.GetIdentifier(), identifier) == 0 {
+			return true
+		}
 	}
 
-	sort.SliceStable(mbs, func(i, j int) bool {
-		return mbs[i].SenderShardID < mbs[j].SenderShardID
-	})
-
-	return mbs
-}
-
-func sortTxs(txs [][]byte, execOrderTxHashMap map[string]uint32) {
-	sort.SliceStable(txs, func(i, j int) bool {
-		return execOrderTxHashMap[string(txs[i])] < execOrderTxHashMap[string(txs[j])]
-	})
+	return false
 }
 
 func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, headerBytes []byte) (*block.HeaderV2, error) {
@@ -213,7 +170,7 @@ func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, heade
 	return headerHandler.(*block.HeaderV2), nil
 }
 
-func (notifier *sovereignNotifier) notifyHandlers(header data.HeaderHandler) error {
+func (notifier *sovereignNotifier) notifyHandlers(header sovereign.IncomingHeaderHandler) error {
 	headerHash, err := core.CalculateHash(notifier.marshaller, notifier.hasher, header)
 	if err != nil {
 		return err
@@ -232,7 +189,7 @@ func (notifier *sovereignNotifier) notifyHandlers(header data.HeaderHandler) err
 }
 
 // RegisterHandler will register an extended header handler to be notified about incoming headers and miniblocks
-func (notifier *sovereignNotifier) RegisterHandler(handler process.HeaderSubscriber) error {
+func (notifier *sovereignNotifier) RegisterHandler(handler process.IncomingHeaderSubscriber) error {
 	if check.IfNil(handler) {
 		return errNilExtendedHeaderHandler
 	}
