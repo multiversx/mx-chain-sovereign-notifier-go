@@ -8,7 +8,6 @@ import (
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
-	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/data/sovereign"
@@ -27,13 +26,11 @@ type sovereignNotifier struct {
 	subscribedAddresses map[string]struct{}
 	headerV2Creator     block.EmptyBlockCreator
 	marshaller          marshal.Marshalizer
-	shardCoordinator    process.ShardCoordinator
 	hasher              hashing.Hasher
 }
 
 // ArgsSovereignNotifier is a struct placeholder for args needed to create a sovereign notifier
 type ArgsSovereignNotifier struct {
-	ShardCoordinator    process.ShardCoordinator
 	Marshaller          marshal.Marshalizer
 	Hasher              hashing.Hasher
 	SubscribedAddresses [][]byte
@@ -43,9 +40,6 @@ type ArgsSovereignNotifier struct {
 func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error) {
 	if check.IfNil(args.Marshaller) {
 		return nil, core.ErrNilMarshalizer
-	}
-	if check.IfNil(args.ShardCoordinator) {
-		return nil, errNilShardCoordinator
 	}
 	if check.IfNil(args.Hasher) {
 		return nil, errNilHasher
@@ -64,7 +58,6 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 		mutHandler:          sync.RWMutex{},
 		headerV2Creator:     block.NewEmptyHeaderV2Creator(),
 		marshaller:          args.Marshaller,
-		shardCoordinator:    args.ShardCoordinator,
 		hasher:              args.Hasher,
 	}, nil
 }
@@ -102,8 +95,8 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 	}
 
 	extendedHeader := &sovereign.IncomingHeader{
-		Header:       headerV2,
-		IncomingLogs: notifier.createIncomingLogs(outportBlock.TransactionPool.Logs),
+		Header:         headerV2,
+		IncomingEvents: notifier.createIncomingEvents(outportBlock.TransactionPool.Logs),
 	}
 
 	return notifier.notifyHandlers(extendedHeader)
@@ -123,37 +116,38 @@ func checkNilOutportBlockFields(outportBlock *outport.OutportBlock) error {
 	return nil
 }
 
-func (notifier *sovereignNotifier) createIncomingLogs(logsData []*outport.LogData) []*transaction.Log {
-	incomingLogs := make([]*transaction.Log, 0)
+func (notifier *sovereignNotifier) createIncomingEvents(logsData []*outport.LogData) []*transaction.Event {
+	incomingEvents := make([]*transaction.Event, 0)
 
 	for _, logData := range logsData {
-		currLog := logData.GetLog()
-		receiver := currLog.GetAddress()
+		events := logData.GetLog().Events
+		eventsFromLog := notifier.getIncomingEvents(events, logData.TxHash)
+
+		incomingEvents = append(incomingEvents, eventsFromLog...)
+	}
+
+	return incomingEvents
+}
+
+func (notifier *sovereignNotifier) getIncomingEvents(events []*transaction.Event, txHash string) []*transaction.Event {
+	incomingEvents := make([]*transaction.Event, 0)
+
+	for _, event := range events {
+		receiver := event.GetAddress()
 		_, found := notifier.subscribedAddresses[string(receiver)]
 		if !found {
 			continue
 		}
 
-		events := currLog.GetLogEvents()
-		if !eventsContainIdentifier(events, []byte("deposit")) {
+		if !(bytes.Compare(event.GetIdentifier(), []byte("deposit")) == 0) {
 			continue
 		}
 
-		incomingLogs = append(incomingLogs, currLog)
-		log.Info("found incoming log", "tx hash", logData.TxHash, "receiver", hex.EncodeToString(receiver))
+		log.Info("found incoming event", "original tx hash", txHash, "receiver", hex.EncodeToString(receiver))
+		incomingEvents = append(incomingEvents, event)
 	}
 
-	return incomingLogs
-}
-
-func eventsContainIdentifier(events []data.EventHandler, identifier []byte) bool {
-	for _, event := range events {
-		if bytes.Compare(event.GetIdentifier(), identifier) == 0 {
-			return true
-		}
-	}
-
-	return false
+	return incomingEvents
 }
 
 func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, headerBytes []byte) (*block.HeaderV2, error) {

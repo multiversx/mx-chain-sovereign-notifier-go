@@ -2,8 +2,6 @@ package notifier
 
 import "errors"
 
-var errNilShardCoordinator = errors.New("nil shard coordinator provided")
-
 var errNoSubscribedAddresses = errors.New("no subscribed addresses provided")
 
 var errDuplicateSubscribedAddresses = errors.New("duplicate subscribed addresses provided")

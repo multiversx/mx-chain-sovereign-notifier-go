@@ -3,7 +3,6 @@ package factory
 import (
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/pubkeyConverter"
-	"github.com/multiversx/mx-chain-core-go/core/sharding"
 	hashingFactory "github.com/multiversx/mx-chain-core-go/hashing/factory"
 	"github.com/multiversx/mx-chain-core-go/marshal/factory"
 	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/client"
@@ -15,7 +14,6 @@ import (
 
 const (
 	addressLen = 32
-	selfId     = 0
 )
 
 // ArgsCreateSovereignNotifier is a struct placeholder for sovereign notifier args
@@ -43,16 +41,10 @@ func CreateSovereignNotifier(args ArgsCreateSovereignNotifier) (process.Sovereig
 		return nil, err
 	}
 
-	shardCoordinator, err := sharding.NewMultiShardCoordinator(args.NumOfMainShards, selfId)
-	if err != nil {
-		return nil, err
-	}
-
 	argsSovereignNotifier := notifier.ArgsSovereignNotifier{
 		Marshaller:          marshaller,
 		Hasher:              hasher,
 		SubscribedAddresses: subscribedAddresses,
-		ShardCoordinator:    shardCoordinator,
 	}
 	return notifier.NewSovereignNotifier(argsSovereignNotifier)
 }
