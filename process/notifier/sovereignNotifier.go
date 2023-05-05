@@ -2,9 +2,7 @@ package notifier
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
-	"sync"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -34,8 +32,7 @@ type ArgsSovereignNotifier struct {
 }
 
 type sovereignNotifier struct {
-	mutHandler       sync.RWMutex
-	handlers         []process.IncomingHeaderSubscriber
+	headersNotifier  *headersNotifier
 	subscribedEvents []SubscribedEvent
 	headerV2Creator  block.EmptyBlockCreator
 	marshaller       marshal.Marshalizer
@@ -57,8 +54,7 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 
 	return &sovereignNotifier{
 		subscribedEvents: args.SubscribedEvents,
-		handlers:         make([]process.IncomingHeaderSubscriber, 0),
-		mutHandler:       sync.RWMutex{},
+		headersNotifier:  newHeadersNotifier(args.Marshaller, args.Hasher),
 		headerV2Creator:  block.NewEmptyHeaderV2Creator(),
 		marshaller:       args.Marshaller,
 		hasher:           args.Hasher,
@@ -122,7 +118,7 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 		IncomingEvents: notifier.createIncomingEvents(outportBlock.TransactionPool.Logs),
 	}
 
-	return notifier.notifyHandlers(extendedHeader)
+	return notifier.headersNotifier.notifyHeaderSubscribers(extendedHeader)
 }
 
 func checkNilOutportBlockFields(outportBlock *outport.OutportBlock) error {
@@ -199,35 +195,9 @@ func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, heade
 	return headerHandler.(*block.HeaderV2), nil
 }
 
-func (notifier *sovereignNotifier) notifyHandlers(header sovereign.IncomingHeaderHandler) error {
-	headerHash, err := core.CalculateHash(notifier.marshaller, notifier.hasher, header)
-	if err != nil {
-		return err
-	}
-
-	log.Info("notifying shard extended header", "hash", hex.EncodeToString(headerHash))
-
-	notifier.mutHandler.RLock()
-	defer notifier.mutHandler.RUnlock()
-
-	for _, handler := range notifier.handlers {
-		handler.AddHeader(headerHash, header)
-	}
-
-	return nil
-}
-
 // RegisterHandler will register an extended header handler to be notified about incoming headers and miniblocks
 func (notifier *sovereignNotifier) RegisterHandler(handler process.IncomingHeaderSubscriber) error {
-	if check.IfNil(handler) {
-		return errNilExtendedHeaderHandler
-	}
-
-	notifier.mutHandler.Lock()
-	notifier.handlers = append(notifier.handlers, handler)
-	notifier.mutHandler.Unlock()
-
-	return nil
+	return notifier.headersNotifier.registerSubscriber(handler)
 }
 
 // IsInterfaceNil checks if the underlying pointer is nil

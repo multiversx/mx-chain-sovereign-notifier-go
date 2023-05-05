@@ -8,7 +8,7 @@ var errNoSubscribedIdentifier = errors.New("no subscribed identifier provided")
 
 var errNoSubscribedEvent = errors.New("no subscribed event provided")
 
-var errNilExtendedHeaderHandler = errors.New("nil extended header handler provided")
+var errNilHeaderSubscriber = errors.New("nil header subscriber provided")
 
 var errInvalidHeaderTypeReceived = errors.New("received invalid header type")
 

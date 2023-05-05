@@ -294,7 +294,7 @@ func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {
 		sn, _ := NewSovereignNotifier(args)
 
 		err := sn.RegisterHandler(nil)
-		require.Equal(t, errNilExtendedHeaderHandler, err)
+		require.Equal(t, errNilHeaderSubscriber, err)
 	})
 
 	t.Run("notify nil outport block fields", func(t *testing.T) {
@@ -474,7 +474,7 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 
 	wg.Wait()
 
-	sn.mutHandler.RLock()
-	defer sn.mutHandler.RUnlock()
-	require.Equal(t, n/2, len(sn.handlers))
+	sn.headersNotifier.mutSubscribers.RLock()
+	defer sn.headersNotifier.mutSubscribers.RUnlock()
+	require.Equal(t, n/2, len(sn.headersNotifier.subscribers))
 }
