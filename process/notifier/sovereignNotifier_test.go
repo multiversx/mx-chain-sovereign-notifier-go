@@ -19,11 +19,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var identifier = []byte("deposit")
+
 func createArgs() ArgsSovereignNotifier {
 	return ArgsSovereignNotifier{
-		Marshaller:          &testscommon.MarshallerMock{},
-		SubscribedAddresses: [][]byte{[]byte("address")},
-		Hasher:              sha256.NewSha256(),
+		Marshaller: &testscommon.MarshallerMock{},
+		SubscribedEvents: []SubscribedEvent{
+			{
+				Identifier: identifier,
+				Addresses: map[string]string{
+					"encodedAddr": "decodedAddr",
+				},
+			},
+		},
+		Hasher: sha256.NewSha256(),
 	}
 }
 
@@ -68,19 +77,50 @@ func TestNewSovereignNotifier(t *testing.T) {
 
 	t.Run("no subscribed address, should return error", func(t *testing.T) {
 		args := createArgs()
-		args.SubscribedAddresses = nil
+		args.SubscribedEvents = nil
 		notif, err := NewSovereignNotifier(args)
-		require.Equal(t, errNoSubscribedAddresses, err)
+		require.Equal(t, errNoSubscribedEvent, err)
 		require.Nil(t, notif)
 	})
 
-	t.Run("duplicate subscribed address, should return error", func(t *testing.T) {
+	t.Run("no subscribed identifier, should return error", func(t *testing.T) {
 		args := createArgs()
-		args.SubscribedAddresses = [][]byte{[]byte("addr"), []byte("addr")}
+		args.SubscribedEvents[0].Identifier = nil
 		notif, err := NewSovereignNotifier(args)
-		require.Equal(t, errDuplicateSubscribedAddresses, err)
+		require.NotNil(t, err)
+		require.True(t, strings.Contains(err.Error(), errNoSubscribedIdentifier.Error()))
+		require.True(t, strings.Contains(err.Error(), "index = 0"))
 		require.Nil(t, notif)
 	})
+
+	t.Run("no subscribed address, should return error", func(t *testing.T) {
+		args := createArgs()
+		args.SubscribedEvents[0].Addresses = nil
+		notif, err := NewSovereignNotifier(args)
+		require.NotNil(t, err)
+		require.True(t, strings.Contains(err.Error(), errNoSubscribedAddresses.Error()))
+		require.True(t, strings.Contains(err.Error(), "index = 0"))
+		require.Nil(t, notif)
+
+		args.SubscribedEvents[0].Addresses = map[string]string{
+			"addr": "",
+		}
+		notif, err = NewSovereignNotifier(args)
+		require.NotNil(t, err)
+		require.True(t, strings.Contains(err.Error(), errNoSubscribedAddresses.Error()))
+		require.True(t, strings.Contains(err.Error(), "index = 0"))
+		require.Nil(t, notif)
+
+		args.SubscribedEvents[0].Addresses = map[string]string{
+			"": "addr",
+		}
+		notif, err = NewSovereignNotifier(args)
+		require.NotNil(t, err)
+		require.True(t, strings.Contains(err.Error(), errNoSubscribedAddresses.Error()))
+		require.True(t, strings.Contains(err.Error(), "index = 0"))
+		require.Nil(t, notif)
+	})
+
 }
 
 func TestSovereignNotifier_Notify(t *testing.T) {
@@ -88,7 +128,6 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 
 	addr1 := []byte("addr1")
 	addr2 := []byte("addr2")
-	identifier := []byte("deposit")
 
 	headerV2 := &block.HeaderV2{
 		Header:            &block.Header{},
@@ -116,7 +155,15 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	}
 
 	args := createArgs()
-	args.SubscribedAddresses = [][]byte{addr1, addr2}
+	args.SubscribedEvents = []SubscribedEvent{
+		{
+			Identifier: identifier,
+			Addresses: map[string]string{
+				string(addr1): string(addr1),
+				string(addr2): string(addr2),
+			},
+		},
+	}
 
 	extendedShardHeaderHash, err := core.CalculateHash(args.Marshaller, args.Hasher, incomingHeader)
 	require.Nil(t, err)
@@ -315,8 +362,6 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 	t.Parallel()
 
 	addr1 := []byte("addr1")
-	identifier := []byte("deposit")
-
 	headerV2 := &block.HeaderV2{
 		Header:            &block.Header{},
 		ScheduledRootHash: []byte("root hash"),
@@ -332,7 +377,14 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 	}
 
 	args := createArgs()
-	args.SubscribedAddresses = [][]byte{addr1}
+	args.SubscribedEvents = []SubscribedEvent{
+		{
+			Identifier: identifier,
+			Addresses: map[string]string{
+				string(addr1): string(addr1),
+			},
+		},
+	}
 
 	extendedShardHeaderHash, err := core.CalculateHash(args.Marshaller, args.Hasher, incomingHeader)
 	require.Nil(t, err)

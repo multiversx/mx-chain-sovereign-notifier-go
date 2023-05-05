@@ -1,6 +1,6 @@
-num_main_shards = 1
-
-subscribed_addresses = ["erd1", "erd1"]
+subscribed_events = [
+    { identifier = "deposit", addresses = ["erd1", "erd1"] }
+]
 
 [web_socket]
     url = "localhost:22111"

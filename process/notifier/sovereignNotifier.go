@@ -20,20 +20,26 @@ import (
 
 var log = logger.GetOrCreate("notifier-sovereign-process")
 
-type sovereignNotifier struct {
-	mutHandler          sync.RWMutex
-	handlers            []process.IncomingHeaderSubscriber
-	subscribedAddresses map[string]struct{}
-	headerV2Creator     block.EmptyBlockCreator
-	marshaller          marshal.Marshalizer
-	hasher              hashing.Hasher
+// SubscribedEvent contains a subscribed event from the main chain that the notifier is watching
+type SubscribedEvent struct {
+	Identifier []byte
+	Addresses  map[string]string
 }
 
 // ArgsSovereignNotifier is a struct placeholder for args needed to create a sovereign notifier
 type ArgsSovereignNotifier struct {
-	Marshaller          marshal.Marshalizer
-	Hasher              hashing.Hasher
-	SubscribedAddresses [][]byte
+	Marshaller       marshal.Marshalizer
+	Hasher           hashing.Hasher
+	SubscribedEvents []SubscribedEvent
+}
+
+type sovereignNotifier struct {
+	mutHandler       sync.RWMutex
+	handlers         []process.IncomingHeaderSubscriber
+	subscribedEvents []SubscribedEvent
+	headerV2Creator  block.EmptyBlockCreator
+	marshaller       marshal.Marshalizer
+	hasher           hashing.Hasher
 }
 
 // NewSovereignNotifier will create a sovereign shard notifier
@@ -44,40 +50,57 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 	if check.IfNil(args.Hasher) {
 		return nil, errNilHasher
 	}
-
-	subscribedAddresses, err := getAddressesMap(args.SubscribedAddresses)
+	err := checkEvents(args.SubscribedEvents)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Debug("received config", "subscribed addresses", args.SubscribedAddresses)
-
 	return &sovereignNotifier{
-		subscribedAddresses: subscribedAddresses,
-		handlers:            make([]process.IncomingHeaderSubscriber, 0),
-		mutHandler:          sync.RWMutex{},
-		headerV2Creator:     block.NewEmptyHeaderV2Creator(),
-		marshaller:          args.Marshaller,
-		hasher:              args.Hasher,
+		subscribedEvents: args.SubscribedEvents,
+		handlers:         make([]process.IncomingHeaderSubscriber, 0),
+		mutHandler:       sync.RWMutex{},
+		headerV2Creator:  block.NewEmptyHeaderV2Creator(),
+		marshaller:       args.Marshaller,
+		hasher:           args.Hasher,
 	}, nil
 }
 
-func getAddressesMap(addresses [][]byte) (map[string]struct{}, error) {
-	numAddresses := len(addresses)
-	if numAddresses == 0 {
-		return nil, errNoSubscribedAddresses
+func checkEvents(events []SubscribedEvent) error {
+	if len(events) == 0 {
+		return errNoSubscribedEvent
 	}
 
-	addressesMap := make(map[string]struct{}, numAddresses)
-	for _, addr := range addresses {
-		addressesMap[string(addr)] = struct{}{}
+	log.Debug("sovereign notifier received config", "num subscribed events", len(events))
+	for idx, event := range events {
+		if len(event.Identifier) == 0 {
+			return fmt.Errorf("%w at event index = %d", errNoSubscribedIdentifier, idx)
+		}
+
+		log.Debug("sovereign notifier", "subscribed event identifier", string(event.Identifier))
+
+		err := checkEmptyAddresses(event.Addresses)
+		if err != nil {
+			return fmt.Errorf("%w at event index = %d", err, idx)
+		}
 	}
 
-	if len(addressesMap) != numAddresses {
-		return nil, errDuplicateSubscribedAddresses
+	return nil
+}
+
+func checkEmptyAddresses(addresses map[string]string) error {
+	if len(addresses) == 0 {
+		return errNoSubscribedAddresses
 	}
 
-	return addressesMap, nil
+	for decodedAddr, encodedAddr := range addresses {
+		if len(decodedAddr) == 0 || len(encodedAddr) == 0 {
+			return errNoSubscribedAddresses
+		}
+
+		log.Debug("sovereign notifier", "subscribed address", encodedAddr)
+	}
+
+	return nil
 }
 
 // Notify will notify the sovereign nodes about the finalized block and incoming mb txs
@@ -133,21 +156,33 @@ func (notifier *sovereignNotifier) getIncomingEvents(events []*transaction.Event
 	incomingEvents := make([]*transaction.Event, 0)
 
 	for _, event := range events {
-		receiver := event.GetAddress()
-		_, found := notifier.subscribedAddresses[string(receiver)]
-		if !found {
+		if !notifier.isSubscribed(event, txHash) {
 			continue
 		}
 
-		if !(bytes.Compare(event.GetIdentifier(), []byte("deposit")) == 0) {
-			continue
-		}
-
-		log.Info("found incoming event", "original tx hash", txHash, "receiver", hex.EncodeToString(receiver))
 		incomingEvents = append(incomingEvents, event)
 	}
 
 	return incomingEvents
+}
+
+func (notifier *sovereignNotifier) isSubscribed(event *transaction.Event, txHash string) bool {
+	for _, subEvent := range notifier.subscribedEvents {
+		if !(bytes.Compare(event.GetIdentifier(), subEvent.Identifier) == 0) {
+			continue
+		}
+
+		receiver := event.GetAddress()
+		encodedAddr, found := subEvent.Addresses[string(receiver)]
+		if !found {
+			continue
+		}
+
+		log.Info("found incoming event", "original tx hash", txHash, "receiver", encodedAddr)
+		return true
+	}
+
+	return false
 }
 
 func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, headerBytes []byte) (*block.HeaderV2, error) {
