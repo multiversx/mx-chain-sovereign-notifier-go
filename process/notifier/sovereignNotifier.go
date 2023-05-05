@@ -168,7 +168,7 @@ func (notifier *sovereignNotifier) getIncomingEvents(events []*transaction.Event
 
 func (notifier *sovereignNotifier) isSubscribed(event *transaction.Event, txHash string) bool {
 	for _, subEvent := range notifier.subscribedEvents {
-		if !(bytes.Compare(event.GetIdentifier(), subEvent.Identifier) == 0) {
+		if !bytes.Equal(event.GetIdentifier(), subEvent.Identifier) {
 			continue
 		}
 

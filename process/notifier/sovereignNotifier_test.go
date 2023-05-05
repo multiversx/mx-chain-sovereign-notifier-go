@@ -128,7 +128,9 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 
 	addr1 := []byte("addr1")
 	addr2 := []byte("addr2")
+	addr3 := []byte("addr3")
 
+	identifier2 := []byte("send")
 	headerV2 := &block.HeaderV2{
 		Header:            &block.Header{},
 		ScheduledRootHash: []byte("root hash"),
@@ -151,6 +153,11 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 				Identifier: identifier,
 				Data:       []byte("data6"),
 			},
+			{
+				Address:    addr3,
+				Identifier: identifier2,
+				Data:       []byte("data7"),
+			},
 		},
 	}
 
@@ -161,6 +168,12 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 			Addresses: map[string]string{
 				string(addr1): string(addr1),
 				string(addr2): string(addr2),
+			},
+		},
+		{
+			Identifier: identifier2,
+			Addresses: map[string]string{
+				string(addr3): string(addr3),
 			},
 		},
 	}
@@ -247,6 +260,18 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 								Address:    addr2,
 								Identifier: identifier,
 								Data:       []byte("data6"),
+							},
+						},
+					},
+				},
+				{
+					TxHash: "txHash3",
+					Log: &transaction.Log{
+						Events: []*transaction.Event{
+							{
+								Address:    addr3,
+								Identifier: identifier2,
+								Data:       []byte("data7"),
 							},
 						},
 					},
