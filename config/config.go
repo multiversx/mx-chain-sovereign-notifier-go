@@ -6,6 +6,7 @@ type Config struct {
 	WebSocketConfig  WebSocketConfig   `toml:"web_socket"`
 }
 
+// SubscribedEvent holds subscribed events config
 type SubscribedEvent struct {
 	Identifier string   `toml:"identifier"`
 	Addresses  []string `toml:"addresses"`
