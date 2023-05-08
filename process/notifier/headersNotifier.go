@@ -52,7 +52,10 @@ func (hn *headersNotifier) notifyHeaderSubscribers(header sovereign.IncomingHead
 	defer hn.mutSubscribers.RUnlock()
 
 	for _, handler := range hn.subscribers {
-		handler.AddHeader(headerHash, header)
+		err = handler.AddHeader(headerHash, header)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

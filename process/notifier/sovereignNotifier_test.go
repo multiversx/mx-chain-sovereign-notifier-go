@@ -184,17 +184,21 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	saveHeaderCalled1 := false
 	saveHeaderCalled2 := false
 	handler1 := &testscommon.HeaderSubscriberStub{
-		AddHeaderCalled: func(headerHash []byte, header sovereign.IncomingHeaderHandler) {
+		AddHeaderCalled: func(headerHash []byte, header sovereign.IncomingHeaderHandler) error {
 			require.Equal(t, extendedShardHeaderHash, headerHash)
 			require.Equal(t, incomingHeader, header)
 			saveHeaderCalled1 = true
+
+			return nil
 		},
 	}
 	handler2 := &testscommon.HeaderSubscriberStub{
-		AddHeaderCalled: func(headerHash []byte, header sovereign.IncomingHeaderHandler) {
+		AddHeaderCalled: func(headerHash []byte, header sovereign.IncomingHeaderHandler) error {
 			require.Equal(t, extendedShardHeaderHash, headerHash)
 			require.Equal(t, incomingHeader, header)
 			saveHeaderCalled2 = true
+
+			return nil
 		},
 	}
 
@@ -381,6 +385,29 @@ func TestSovereignNotifier_NotifyRegisterHandlerErrorCases(t *testing.T) {
 		require.Equal(t, errMarshal, err)
 		require.Equal(t, 2, marshalCt)
 	})
+
+	t.Run("subscriber cannot add header", func(t *testing.T) {
+		args := createArgs()
+		sn, _ := NewSovereignNotifier(args)
+
+		blockData := createBlockData(args.Marshaller)
+
+		outportBlock := &outport.OutportBlock{
+			BlockData:       blockData,
+			TransactionPool: &outport.TransactionPool{},
+		}
+
+		errAddHeader := errors.New("cannot add header")
+		subscriber := &testscommon.HeaderSubscriberStub{
+			AddHeaderCalled: func(headerHash []byte, header sovereign.IncomingHeaderHandler) error {
+				return errAddHeader
+			},
+		}
+		_ = sn.RegisterHandler(subscriber)
+
+		err := sn.Notify(outportBlock)
+		require.Equal(t, errAddHeader, err)
+	})
 }
 
 func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
@@ -458,9 +485,11 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 				defer wg.Done()
 
 				handler := &testscommon.HeaderSubscriberStub{
-					AddHeaderCalled: func(headerHash []byte, header sovereign.IncomingHeaderHandler) {
+					AddHeaderCalled: func(headerHash []byte, header sovereign.IncomingHeaderHandler) error {
 						require.Equal(t, extendedShardHeaderHash, headerHash)
 						require.Equal(t, incomingHeader, header)
+
+						return nil
 					},
 				}
 

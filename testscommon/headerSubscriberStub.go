@@ -6,14 +6,16 @@ import (
 
 // HeaderSubscriberStub -
 type HeaderSubscriberStub struct {
-	AddHeaderCalled func(headerHash []byte, header sovereign.IncomingHeaderHandler)
+	AddHeaderCalled func(headerHash []byte, header sovereign.IncomingHeaderHandler) error
 }
 
 // AddHeader -
-func (stub *HeaderSubscriberStub) AddHeader(headerHash []byte, header sovereign.IncomingHeaderHandler) {
+func (stub *HeaderSubscriberStub) AddHeader(headerHash []byte, header sovereign.IncomingHeaderHandler) error {
 	if stub.AddHeaderCalled != nil {
-		stub.AddHeaderCalled(headerHash, header)
+		return stub.AddHeaderCalled(headerHash, header)
 	}
+
+	return nil
 }
 
 // IsInterfaceNil -
