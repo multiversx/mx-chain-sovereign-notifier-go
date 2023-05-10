@@ -54,7 +54,7 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 
 	return &sovereignNotifier{
 		subscribedEvents: args.SubscribedEvents,
-		headersNotifier:  newHeadersNotifier(args.Marshaller, args.Hasher),
+		headersNotifier:  newHeadersNotifier(),
 		headerV2Creator:  block.NewEmptyHeaderV2Creator(),
 		marshaller:       args.Marshaller,
 		hasher:           args.Hasher,
@@ -118,7 +118,12 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 		IncomingEvents: notifier.createIncomingEvents(outportBlock.TransactionPool.Logs),
 	}
 
-	return notifier.headersNotifier.notifyHeaderSubscribers(extendedHeader)
+	headerHash, err := core.CalculateHash(notifier.marshaller, notifier.hasher, extendedHeader)
+	if err != nil {
+		return err
+	}
+
+	return notifier.headersNotifier.notifyHeaderSubscribers(extendedHeader, headerHash)
 }
 
 func checkNilOutportBlockFields(outportBlock *outport.OutportBlock) error {
@@ -139,20 +144,18 @@ func (notifier *sovereignNotifier) createIncomingEvents(logsData []*outport.LogD
 	incomingEvents := make([]*transaction.Event, 0)
 
 	for _, logData := range logsData {
-		events := logData.GetLog().Events
-		eventsFromLog := notifier.getIncomingEvents(events, logData.TxHash)
-
+		eventsFromLog := notifier.getIncomingEvents(logData)
 		incomingEvents = append(incomingEvents, eventsFromLog...)
 	}
 
 	return incomingEvents
 }
 
-func (notifier *sovereignNotifier) getIncomingEvents(events []*transaction.Event, txHash string) []*transaction.Event {
+func (notifier *sovereignNotifier) getIncomingEvents(logData *outport.LogData) []*transaction.Event {
 	incomingEvents := make([]*transaction.Event, 0)
 
-	for _, event := range events {
-		if !notifier.isSubscribed(event, txHash) {
+	for _, event := range logData.GetLog().Events {
+		if !notifier.isSubscribed(event, logData.TxHash) {
 			continue
 		}
 
@@ -174,7 +177,7 @@ func (notifier *sovereignNotifier) isSubscribed(event *transaction.Event, txHash
 			continue
 		}
 
-		log.Info("found incoming event", "original tx hash", txHash, "receiver", encodedAddr)
+		log.Trace("found incoming event", "original tx hash", txHash, "receiver", encodedAddr)
 		return true
 	}
 
