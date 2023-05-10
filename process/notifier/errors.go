@@ -2,13 +2,13 @@ package notifier
 
 import "errors"
 
-var errNilShardCoordinator = errors.New("nil shard coordinator provided")
-
 var errNoSubscribedAddresses = errors.New("no subscribed addresses provided")
 
-var errDuplicateSubscribedAddresses = errors.New("duplicate subscribed addresses provided")
+var errNoSubscribedIdentifier = errors.New("no subscribed identifier provided")
 
-var errNilExtendedHeaderHandler = errors.New("nil extended header handler provided")
+var errNoSubscribedEvent = errors.New("no subscribed event provided")
+
+var errNilHeaderSubscriber = errors.New("nil header subscriber provided")
 
 var errInvalidHeaderTypeReceived = errors.New("received invalid header type")
 

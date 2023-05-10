@@ -1,14 +1,14 @@
 package process
 
 import (
-	"github.com/multiversx/mx-chain-core-go/data"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
+	"github.com/multiversx/mx-chain-core-go/data/sovereign"
 )
 
 // SovereignNotifier defines what a sovereign notifier should do
 type SovereignNotifier interface {
 	Notify(finalizedBlock *outport.OutportBlock) error
-	RegisterHandler(handler HeaderSubscriber) error
+	RegisterHandler(handler IncomingHeaderSubscriber) error
 	IsInterfaceNil() bool
 }
 
@@ -18,9 +18,9 @@ type ShardCoordinator interface {
 	IsInterfaceNil() bool
 }
 
-// HeaderSubscriber defines a subscriber to incoming headers
-type HeaderSubscriber interface {
-	AddHeader(headerHash []byte, header data.HeaderHandler)
+// IncomingHeaderSubscriber defines a subscriber to incoming headers
+type IncomingHeaderSubscriber interface {
+	AddHeader(headerHash []byte, header sovereign.IncomingHeaderHandler) error
 	IsInterfaceNil() bool
 }
 
