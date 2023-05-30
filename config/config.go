@@ -3,6 +3,7 @@ package config
 // Config holds notifier configuration
 type Config struct {
 	SubscribedEvents []SubscribedEvent `toml:"subscribed_events"`
+	HasherType       string            `toml:"hasher_type"`
 	WebSocketConfig  WebSocketConfig   `toml:"web_socket"`
 }
 
@@ -16,7 +17,8 @@ type SubscribedEvent struct {
 type WebSocketConfig struct {
 	Url                string `toml:"url"`
 	MarshallerType     string `toml:"marshaller_type"`
+	Mode               string `toml:"mode"`
 	RetryDuration      uint32 `toml:"retry_duration"`
+	WithAcknowledge    bool   `toml:"with_acknowledge"`
 	BlockingAckOnError bool   `toml:"blocking_ack_on_error"`
-	HasherType         string `toml:"hasher_type"`
 }

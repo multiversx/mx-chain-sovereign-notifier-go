@@ -84,8 +84,6 @@ func startNotifier(ctx *cli.Context) error {
 
 	log.Info("starting ws client...")
 
-	go wsClient.Start()
-
 	<-interrupt
 	log.Info("closing app at user's signal")
 
