@@ -13,7 +13,7 @@ hasher_type = "blake2b"
     mode = "client"
     # Retry duration (receive/send data/acknowledge) in seconds
     retry_duration = 5
-    # This flag specifies if we should send an acknowledge signal upon recieving data
+    # This flag specifies if we should send an acknowledge signal upon receiving data
     with_acknowledge = true
     # Signals if in case of data payload processing error, we should send the ack signal or not. If you want to block
     # incoming data in case of a local error, this should be set to true.
