@@ -6,19 +6,20 @@ import (
 	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/marshal"
-	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/client"
-	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/data"
+
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 )
+
+type handlerFunc func(marshalledData []byte) error
 
 type payloadProcessor struct {
 	indexer           process.Indexer
 	marshaller        marshal.Marshalizer
-	operationHandlers map[data.OperationType]client.HandlerFunc
+	operationHandlers map[string]handlerFunc
 }
 
 // NewPayloadProcessor creates a new operation handler
-func NewPayloadProcessor(indexer process.Indexer, marshaller marshal.Marshalizer) (client.PayloadProcessor, error) {
+func NewPayloadProcessor(indexer process.Indexer, marshaller marshal.Marshalizer) (DataProcessor, error) {
 	if check.IfNil(marshaller) {
 		return nil, errNilMarshaller
 	}
@@ -31,27 +32,27 @@ func NewPayloadProcessor(indexer process.Indexer, marshaller marshal.Marshalizer
 		marshaller: marshaller,
 	}
 
-	opHandler.operationHandlers = map[data.OperationType]client.HandlerFunc{
-		data.OperationSaveBlock:             opHandler.saveBlock,
-		data.OperationRevertIndexedBlock:    noOpHandler,
-		data.OperationSaveRoundsInfo:        noOpHandler,
-		data.OperationSaveValidatorsRating:  noOpHandler,
-		data.OperationSaveValidatorsPubKeys: noOpHandler,
-		data.OperationSaveAccounts:          noOpHandler,
-		data.OperationFinalizedBlock:        opHandler.finalizedBlock,
+	opHandler.operationHandlers = map[string]handlerFunc{
+		outport.TopicSaveBlock:             opHandler.saveBlock,
+		outport.TopicRevertIndexedBlock:    noOpHandler,
+		outport.TopicSaveRoundsInfo:        noOpHandler,
+		outport.TopicSaveValidatorsRating:  noOpHandler,
+		outport.TopicSaveValidatorsPubKeys: noOpHandler,
+		outport.TopicSaveAccounts:          noOpHandler,
+		outport.TopicFinalizedBlock:        opHandler.finalizedBlock,
 	}
 
 	return opHandler, nil
 }
 
 // ProcessPayload executes the handler func that will index data for requested operation type, if exists
-func (pp *payloadProcessor) ProcessPayload(payload *data.PayloadData) error {
-	handlerFunc, found := pp.operationHandlers[payload.OperationType]
+func (pp *payloadProcessor) ProcessPayload(payload []byte, topic string) error {
+	handlerFunc, found := pp.operationHandlers[topic]
 	if !found {
-		return fmt.Errorf("%w, operation type = %s", errOperationTypeInvalid, payload.OperationType.String())
+		return fmt.Errorf("%w, operation type = %s", errOperationTypeInvalid, topic)
 	}
 
-	return handlerFunc(payload.Payload)
+	return handlerFunc(payload)
 }
 
 func (pp *payloadProcessor) saveBlock(marshalledData []byte) error {

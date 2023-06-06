@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/multiversx/mx-chain-core-go/data/outport"
-	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/data"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/testscommon"
 	"github.com/stretchr/testify/require"
 )
@@ -58,16 +57,11 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 
 		payloadProc, _ := NewPayloadProcessor(indexerStub, marshaller)
 
-		payload := &data.PayloadData{
-			OperationType: data.OperationSaveBlock,
-			Payload:       blockBytes,
-		}
-		err := payloadProc.ProcessPayload(payload)
+		err := payloadProc.ProcessPayload(blockBytes, outport.TopicSaveBlock)
 		require.True(t, saveBlockCalled)
 		require.Nil(t, err)
 
-		payload.Payload = []byte("invalid bytes")
-		err = payloadProc.ProcessPayload(payload)
+		err = payloadProc.ProcessPayload([]byte("invalid bytes"), outport.TopicSaveBlock)
 		require.NotNil(t, err)
 	})
 
@@ -88,16 +82,11 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 
 		payloadProc, _ := NewPayloadProcessor(indexerStub, marshaller)
 
-		payload := &data.PayloadData{
-			OperationType: data.OperationFinalizedBlock,
-			Payload:       blockBytes,
-		}
-		err := payloadProc.ProcessPayload(payload)
+		err := payloadProc.ProcessPayload(blockBytes, outport.TopicFinalizedBlock)
 		require.True(t, finalizedBlockCalled)
 		require.Nil(t, err)
 
-		payload.Payload = []byte("invalid bytes")
-		err = payloadProc.ProcessPayload(payload)
+		err = payloadProc.ProcessPayload([]byte("invalid bytes"), outport.TopicFinalizedBlock)
 		require.NotNil(t, err)
 	})
 
@@ -106,19 +95,19 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 
 		payloadProc, _ := NewPayloadProcessor(&testscommon.IndexerStub{}, marshaller)
 
-		err := payloadProc.ProcessPayload(&data.PayloadData{OperationType: data.OperationRevertIndexedBlock})
+		err := payloadProc.ProcessPayload([]byte("payload"), outport.TopicRevertIndexedBlock)
 		require.Nil(t, err)
 
-		err = payloadProc.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveRoundsInfo})
+		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveRoundsInfo)
 		require.Nil(t, err)
 
-		err = payloadProc.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveValidatorsRating})
+		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveValidatorsRating)
 		require.Nil(t, err)
 
-		err = payloadProc.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveValidatorsPubKeys})
+		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveValidatorsPubKeys)
 		require.Nil(t, err)
 
-		err = payloadProc.ProcessPayload(&data.PayloadData{OperationType: data.OperationSaveAccounts})
+		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveAccounts)
 		require.Nil(t, err)
 	})
 
@@ -127,9 +116,8 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 
 		payloadProc, _ := NewPayloadProcessor(&testscommon.IndexerStub{}, marshaller)
 
-		payload := &data.PayloadData{OperationType: data.OperationTypeFromUint64(0xFFFFF)}
-		err := payloadProc.ProcessPayload(payload)
+		err := payloadProc.ProcessPayload([]byte("payload"), "0xFFFFF")
 		require.True(t, strings.Contains(err.Error(), errOperationTypeInvalid.Error()))
-		require.True(t, strings.Contains(err.Error(), payload.OperationType.String()))
+		require.True(t, strings.Contains(err.Error(), "0xFFFFF"))
 	})
 }

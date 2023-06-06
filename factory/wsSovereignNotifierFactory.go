@@ -3,11 +3,14 @@ package factory
 import (
 	"fmt"
 
+	"github.com/multiversx/mx-chain-communication-go/websocket/data"
+	factoryHost "github.com/multiversx/mx-chain-communication-go/websocket/factory"
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/pubkeyConverter"
 	hashingFactory "github.com/multiversx/mx-chain-core-go/hashing/factory"
+	"github.com/multiversx/mx-chain-core-go/marshal"
 	"github.com/multiversx/mx-chain-core-go/marshal/factory"
-	"github.com/multiversx/mx-chain-core-go/websocketOutportDriver/client"
+	logger "github.com/multiversx/mx-chain-logger-go"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process/indexer"
@@ -17,6 +20,8 @@ import (
 const (
 	addressLen = 32
 )
+
+var log = logger.GetOrCreate("ws-sovereign-notifier")
 
 // ArgsCreateSovereignNotifier is a struct placeholder for sovereign notifier args
 type ArgsCreateSovereignNotifier struct {
@@ -74,13 +79,17 @@ func CreateWsClientReceiverNotifier(args ArgsWsClientReceiverNotifier) (process.
 		return nil, err
 	}
 
-	argsWsClient := client.ArgsCreateWsClient{
-		Url:                args.WebSocketConfig.Url,
-		RetryDurationInSec: args.WebSocketConfig.RetryDuration,
-		BlockingAckOnError: args.WebSocketConfig.BlockingAckOnError,
-		PayloadProcessor:   payloadProcessor,
+	wsHost, err := createWsHost(marshaller, args.WebSocketConfig)
+	if err != nil {
+		return nil, err
 	}
-	return client.CreateWsClient(argsWsClient)
+
+	err = wsHost.SetPayloadHandler(payloadProcessor)
+	if err != nil {
+		return nil, err
+	}
+
+	return wsHost, nil
 }
 
 // CreateWsSovereignNotifier will create a ws sovereign shard notifier
@@ -88,7 +97,7 @@ func CreateWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 	sovereignNotifier, err := CreateSovereignNotifier(ArgsCreateSovereignNotifier{
 		MarshallerType:   cfg.WebSocketConfig.MarshallerType,
 		SubscribedEvents: cfg.SubscribedEvents,
-		HasherType:       cfg.WebSocketConfig.HasherType,
+		HasherType:       cfg.HasherType,
 	})
 	if err != nil {
 		return nil, err
@@ -143,4 +152,19 @@ func getAddressesMap(addresses []string) (map[string]string, error) {
 	}
 
 	return addressesMap, nil
+}
+
+func createWsHost(wsMarshaller marshal.Marshalizer, cfg config.WebSocketConfig) (factoryHost.FullDuplexHost, error) {
+	return factoryHost.CreateWebSocketHost(factoryHost.ArgsWebSocketHost{
+		WebSocketConfig: data.WebSocketConfig{
+			URL:                        cfg.Url,
+			WithAcknowledge:            cfg.WithAcknowledge,
+			Mode:                       cfg.Mode,
+			RetryDurationInSec:         int(cfg.RetryDuration),
+			BlockingAckOnError:         cfg.BlockingAckOnError,
+			DropMessagesIfNoConnection: false,
+		},
+		Marshaller: wsMarshaller,
+		Log:        log,
+	})
 }
