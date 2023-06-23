@@ -8,7 +8,7 @@ hasher_type = "blake2b"
 [web_socket]
     url = "localhost:22111"
     # Possible values: json, gogo protobuf. Should be compatible with mx-chain-node outport driver config
-    marshaller_type = "json"
+    marshaller_type = "gogo protobuf"
     # This flag describes the mode to start the WebSocket connector. Can be "client" or "server"
     mode = "client"
     # Retry duration (receive/send data/acknowledge) in seconds
@@ -18,3 +18,5 @@ hasher_type = "blake2b"
     # Signals if in case of data payload processing error, we should send the ack signal or not. If you want to block
     # incoming data in case of a local error, this should be set to true.
     blocking_ack_on_error = false
+    # The duration in seconds to wait for an acknowledgement message
+    acknowledge_timeout = 60

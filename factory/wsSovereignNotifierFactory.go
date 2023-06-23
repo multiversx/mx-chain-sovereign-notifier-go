@@ -163,6 +163,7 @@ func createWsHost(wsMarshaller marshal.Marshalizer, cfg config.WebSocketConfig) 
 			RetryDurationInSec:         int(cfg.RetryDuration),
 			BlockingAckOnError:         cfg.BlockingAckOnError,
 			DropMessagesIfNoConnection: false,
+			AcknowledgeTimeoutInSec:    cfg.AcknowledgeTimeout,
 		},
 		Marshaller: wsMarshaller,
 		Log:        log,
