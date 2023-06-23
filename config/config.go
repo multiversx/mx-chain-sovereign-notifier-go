@@ -21,4 +21,5 @@ type WebSocketConfig struct {
 	RetryDuration      uint32 `toml:"retry_duration"`
 	WithAcknowledge    bool   `toml:"with_acknowledge"`
 	BlockingAckOnError bool   `toml:"blocking_ack_on_error"`
+	AcknowledgeTimeout int    `toml:"acknowledge_timeout"`
 }
