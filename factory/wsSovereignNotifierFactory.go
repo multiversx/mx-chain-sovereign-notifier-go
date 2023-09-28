@@ -164,6 +164,7 @@ func createWsHost(wsMarshaller marshal.Marshalizer, cfg config.WebSocketConfig) 
 			BlockingAckOnError:         cfg.BlockingAckOnError,
 			DropMessagesIfNoConnection: false,
 			AcknowledgeTimeoutInSec:    cfg.AcknowledgeTimeout,
+			Version:                    1,
 		},
 		Marshaller: wsMarshaller,
 		Log:        log,
