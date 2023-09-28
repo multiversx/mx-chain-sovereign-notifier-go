@@ -46,7 +46,8 @@ func NewPayloadProcessor(indexer process.Indexer, marshaller marshal.Marshalizer
 }
 
 // ProcessPayload executes the handler func that will index data for requested operation type, if exists
-func (pp *payloadProcessor) ProcessPayload(payload []byte, topic string) error {
+// TODO: fix version (last param)
+func (pp *payloadProcessor) ProcessPayload(payload []byte, topic string, _ uint32) error {
 	handlerFunc, found := pp.operationHandlers[topic]
 	if !found {
 		return fmt.Errorf("%w, operation type = %s", errOperationTypeInvalid, topic)
