@@ -57,11 +57,11 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 
 		payloadProc, _ := NewPayloadProcessor(indexerStub, marshaller)
 
-		err := payloadProc.ProcessPayload(blockBytes, outport.TopicSaveBlock)
+		err := payloadProc.ProcessPayload(blockBytes, outport.TopicSaveBlock, 0)
 		require.True(t, saveBlockCalled)
 		require.Nil(t, err)
 
-		err = payloadProc.ProcessPayload([]byte("invalid bytes"), outport.TopicSaveBlock)
+		err = payloadProc.ProcessPayload([]byte("invalid bytes"), outport.TopicSaveBlock, 0)
 		require.NotNil(t, err)
 	})
 
@@ -82,11 +82,11 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 
 		payloadProc, _ := NewPayloadProcessor(indexerStub, marshaller)
 
-		err := payloadProc.ProcessPayload(blockBytes, outport.TopicFinalizedBlock)
+		err := payloadProc.ProcessPayload(blockBytes, outport.TopicFinalizedBlock, 0)
 		require.True(t, finalizedBlockCalled)
 		require.Nil(t, err)
 
-		err = payloadProc.ProcessPayload([]byte("invalid bytes"), outport.TopicFinalizedBlock)
+		err = payloadProc.ProcessPayload([]byte("invalid bytes"), outport.TopicFinalizedBlock, 0)
 		require.NotNil(t, err)
 	})
 
@@ -95,19 +95,19 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 
 		payloadProc, _ := NewPayloadProcessor(&testscommon.IndexerStub{}, marshaller)
 
-		err := payloadProc.ProcessPayload([]byte("payload"), outport.TopicRevertIndexedBlock)
+		err := payloadProc.ProcessPayload([]byte("payload"), outport.TopicRevertIndexedBlock, 0)
 		require.Nil(t, err)
 
-		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveRoundsInfo)
+		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveRoundsInfo, 0)
 		require.Nil(t, err)
 
-		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveValidatorsRating)
+		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveValidatorsRating, 0)
 		require.Nil(t, err)
 
-		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveValidatorsPubKeys)
+		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveValidatorsPubKeys, 0)
 		require.Nil(t, err)
 
-		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveAccounts)
+		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveAccounts, 0)
 		require.Nil(t, err)
 	})
 
@@ -116,7 +116,7 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 
 		payloadProc, _ := NewPayloadProcessor(&testscommon.IndexerStub{}, marshaller)
 
-		err := payloadProc.ProcessPayload([]byte("payload"), "0xFFFFF")
+		err := payloadProc.ProcessPayload([]byte("payload"), "0xFFFFF", 0)
 		require.True(t, strings.Contains(err.Error(), errOperationTypeInvalid.Error()))
 		require.True(t, strings.Contains(err.Error(), "0xFFFFF"))
 	})
