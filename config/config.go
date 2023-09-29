@@ -22,4 +22,5 @@ type WebSocketConfig struct {
 	WithAcknowledge    bool   `toml:"with_acknowledge"`
 	BlockingAckOnError bool   `toml:"blocking_ack_on_error"`
 	AcknowledgeTimeout int    `toml:"acknowledge_timeout"`
+	Version            uint32 `toml:"version"`
 }

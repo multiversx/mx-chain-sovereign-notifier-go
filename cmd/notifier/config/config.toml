@@ -20,3 +20,5 @@ hasher_type = "blake2b"
     blocking_ack_on_error = false
     # The duration in seconds to wait for an acknowledgement message
     acknowledge_timeout = 60
+    # Payload version to process
+    version = 1
