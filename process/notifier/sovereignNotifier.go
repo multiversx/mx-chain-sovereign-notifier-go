@@ -2,7 +2,10 @@ package notifier
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"math/big"
+	"strings"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -93,7 +96,7 @@ func checkEmptyAddresses(addresses map[string]string) error {
 			return errNoSubscribedAddresses
 		}
 
-		log.Debug("sovereign notifier", "subscribed address", encodedAddr)
+		log.Debug("sovereign notifier", "decoded address - key", decodedAddr, "subscribed address - value", encodedAddr)
 	}
 
 	return nil
@@ -115,7 +118,7 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 
 	extendedHeader := &sovereign.IncomingHeader{
 		Header:         headerV2,
-		IncomingEvents: notifier.createIncomingEvents(outportBlock.TransactionPool.Logs),
+		IncomingEvents: notifier.createIncomingEventsFromTxData(outportBlock.TransactionPool.Transactions, outportBlock.TransactionPool.SmartContractResults),
 	}
 
 	headerHash, err := core.CalculateHash(notifier.marshaller, notifier.hasher, extendedHeader)
@@ -151,6 +154,45 @@ func (notifier *sovereignNotifier) createIncomingEvents(logsData []*outport.LogD
 	return incomingEvents
 }
 
+func (notifier *sovereignNotifier) createIncomingEventsFromTxData(txs map[string]*outport.TxInfo, scrInfos map[string]*outport.SCRInfo) []*transaction.Event {
+	incomingEvents := make([]*transaction.Event, 0)
+
+	log.Info("this is from radu!!!!!")
+
+	for _, tx := range txs {
+		data := string(tx.Transaction.GetData())
+		splitdata := strings.Split(data, "@")
+		if len(splitdata) < 4 {
+			continue
+		}
+		receiver := []byte(splitdata[1])
+		log.Info("createIncomingEventsFromTxData", "txdata", data, "receiver", string(receiver))
+
+		found := notifier.isSubscribedAddress(receiver)
+		if !found {
+			continue
+		}
+		eventsFromLog := notifier.addEvents(receiver, tx.Transaction.Data)
+		incomingEvents = append(incomingEvents, eventsFromLog...)
+	}
+
+	for _, scrInfo := range scrInfos {
+		receiver := scrInfo.SmartContractResult.RcvAddr
+		data := string(scrInfo.SmartContractResult.GetData())
+		log.Info("createIncomingEventsFromTxData", "scrdata", data)
+		scr, _ := json.Marshal(scrInfo.SmartContractResult)
+		log.Info("createIncomingEventsFromTxData", "scr", string(scr))
+		found := notifier.isSubscribedAddress(receiver)
+		if !found {
+			continue
+		}
+		eventsFromLog := notifier.addEvents(scrInfo.SmartContractResult.RcvAddr, scrInfo.SmartContractResult.Data)
+		incomingEvents = append(incomingEvents, eventsFromLog...)
+	}
+
+	return incomingEvents
+}
+
 func (notifier *sovereignNotifier) getIncomingEvents(logData *outport.LogData) []*transaction.Event {
 	incomingEvents := make([]*transaction.Event, 0)
 
@@ -162,6 +204,29 @@ func (notifier *sovereignNotifier) getIncomingEvents(logData *outport.LogData) [
 		incomingEvents = append(incomingEvents, event)
 	}
 
+	return incomingEvents
+}
+
+func (notifier *sovereignNotifier) addEvents(receiverAddress []byte, txData []byte) []*transaction.Event {
+	log.Info("txData", "txData", string(txData))
+
+	incomingEvents := make([]*transaction.Event, 0)
+
+	transferESDT := [][]byte{
+		[]byte("WEGLD-bd4d79"), // id
+		big.NewInt(0).Bytes(),  // nonce = 0
+		big.NewInt(50).Bytes(), // value
+	}
+
+	topic := append([][]byte{receiverAddress}, transferESDT...)
+
+	event := &transaction.Event{
+		Address:    receiverAddress,
+		Identifier: []byte("deposit"),
+		Topics:     topic,
+		Data:       make([]byte, 0),
+	}
+	incomingEvents = append(incomingEvents, event)
 	return incomingEvents
 }
 
@@ -177,7 +242,26 @@ func (notifier *sovereignNotifier) isSubscribed(event *transaction.Event, txHash
 			continue
 		}
 
-		log.Trace("found incoming event", "original tx hash", txHash, "receiver", encodedAddr)
+		log.Info("found incoming event", "original tx hash", txHash, "receiver", encodedAddr)
+		return true
+	}
+
+	return false
+}
+
+func (notifier *sovereignNotifier) isSubscribedAddress(receiver []byte) bool {
+	receiverStr := string(receiver)
+	for _, subEvent := range notifier.subscribedEvents {
+		for address, encodedAddr := range subEvent.Addresses {
+			log.Info("isSubscribedAddress", "address", address, "receiver", receiverStr, "encodedAddr", encodedAddr)
+		}
+		encodedAddr, found := subEvent.Addresses[receiverStr]
+		if !found {
+			log.Info("not found", "receiver", receiverStr)
+			continue
+		}
+
+		log.Info("found incoming event", "receiver", encodedAddr)
 		return true
 	}
 
