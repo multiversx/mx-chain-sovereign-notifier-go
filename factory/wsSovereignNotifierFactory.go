@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"github.com/multiversx/mx-chain-communication-go/websocket/data"
@@ -144,7 +145,7 @@ func getAddressesMap(addresses []string) (map[string]string, error) {
 			return nil, errDecode
 		}
 
-		addressesMap[string(decodedAddr)] = encodedAddr
+		addressesMap[hex.EncodeToString(decodedAddr)] = encodedAddr
 	}
 
 	if len(addressesMap) != numAddresses {

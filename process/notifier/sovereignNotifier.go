@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -157,22 +158,22 @@ func (notifier *sovereignNotifier) createIncomingEvents(logsData []*outport.LogD
 func (notifier *sovereignNotifier) createIncomingEventsFromTxData(txs map[string]*outport.TxInfo, scrInfos map[string]*outport.SCRInfo) []*transaction.Event {
 	incomingEvents := make([]*transaction.Event, 0)
 
-	log.Info("this is from radu!!!!!")
-
 	for _, tx := range txs {
-		data := string(tx.Transaction.GetData())
+		data := fmt.Sprintf("%s", tx.Transaction.GetData())
 		splitdata := strings.Split(data, "@")
 		if len(splitdata) < 4 {
 			continue
 		}
-		receiver := []byte(splitdata[1])
-		log.Info("createIncomingEventsFromTxData", "txdata", data, "receiver", string(receiver))
+
+		receiver := splitdata[1]
+		log.Info("createIncomingEventsFromTxData", "txdata", data, "receiver", receiver, "len", len(receiver))
 
 		found := notifier.isSubscribedAddress(receiver)
 		if !found {
 			continue
 		}
-		eventsFromLog := notifier.addEvents(receiver, tx.Transaction.Data)
+		receiverBytes, _ := hex.DecodeString(receiver)
+		eventsFromLog := notifier.addEvents(receiverBytes, tx.Transaction.Data)
 		incomingEvents = append(incomingEvents, eventsFromLog...)
 	}
 
@@ -182,7 +183,7 @@ func (notifier *sovereignNotifier) createIncomingEventsFromTxData(txs map[string
 		log.Info("createIncomingEventsFromTxData", "scrdata", data)
 		scr, _ := json.Marshal(scrInfo.SmartContractResult)
 		log.Info("createIncomingEventsFromTxData", "scr", string(scr))
-		found := notifier.isSubscribedAddress(receiver)
+		found := notifier.isSubscribedAddress(string(receiver))
 		if !found {
 			continue
 		}
@@ -208,14 +209,37 @@ func (notifier *sovereignNotifier) getIncomingEvents(logData *outport.LogData) [
 }
 
 func (notifier *sovereignNotifier) addEvents(receiverAddress []byte, txData []byte) []*transaction.Event {
-	log.Info("txData", "txData", string(txData))
+	log.Info("addEvents", "txData", string(txData))
 
 	incomingEvents := make([]*transaction.Event, 0)
 
+	defer func(ie []*transaction.Event) {
+		log.Info("addEvents", "nr incomingEvents", len(ie))
+	}(incomingEvents)
+
+	splitData := strings.Split(string(txData), "@")
+
+	if len(splitData) < 7 {
+		return incomingEvents
+	}
+
+	for i, v := range splitData {
+		log.Info("addEvents", "i", i, "v", v)
+	}
+
+	if splitData[0] != "MultiESDTNFTTransfer" {
+		return incomingEvents
+	}
+	log.Info("addEvents - after MultiESDTNFTTransfer")
+	quantity, ok := big.NewInt(0).SetString(splitData[5], 10)
+	if !ok {
+		return incomingEvents
+	}
+	log.Info("addEvents - after quantity")
 	transferESDT := [][]byte{
 		[]byte("WEGLD-bd4d79"), // id
 		big.NewInt(0).Bytes(),  // nonce = 0
-		big.NewInt(50).Bytes(), // value
+		quantity.Bytes(),       // value
 	}
 
 	topic := append([][]byte{receiverAddress}, transferESDT...)
@@ -226,7 +250,11 @@ func (notifier *sovereignNotifier) addEvents(receiverAddress []byte, txData []by
 		Topics:     topic,
 		Data:       make([]byte, 0),
 	}
+	log.Info("addEvents - event")
+
 	incomingEvents = append(incomingEvents, event)
+	log.Info("addEvents", "nr incomingEvents", len(incomingEvents))
+
 	return incomingEvents
 }
 
@@ -249,15 +277,11 @@ func (notifier *sovereignNotifier) isSubscribed(event *transaction.Event, txHash
 	return false
 }
 
-func (notifier *sovereignNotifier) isSubscribedAddress(receiver []byte) bool {
-	receiverStr := string(receiver)
+func (notifier *sovereignNotifier) isSubscribedAddress(receiver string) bool {
 	for _, subEvent := range notifier.subscribedEvents {
-		for address, encodedAddr := range subEvent.Addresses {
-			log.Info("isSubscribedAddress", "address", address, "receiver", receiverStr, "encodedAddr", encodedAddr)
-		}
-		encodedAddr, found := subEvent.Addresses[receiverStr]
+		encodedAddr, found := subEvent.Addresses[receiver]
 		if !found {
-			log.Info("not found", "receiver", receiverStr)
+			log.Info("not found", "receiver", receiver)
 			continue
 		}
 
