@@ -3,9 +3,9 @@ module github.com/multiversx/mx-chain-sovereign-notifier-go
 go 1.20
 
 require (
-	github.com/multiversx/mx-chain-communication-go v1.0.13-0.20240507135354-7f3acb4aebbe
+	github.com/multiversx/mx-chain-communication-go v1.0.13-0.20240508065513-773fbec3abb9
 	github.com/multiversx/mx-chain-core-go v1.2.20-0.20240507090904-fb3dbed69fd0
-	github.com/multiversx/mx-chain-logger-go v1.0.14-0.20240129144507-d00e967c890c
+	github.com/multiversx/mx-chain-logger-go v1.0.15-0.20240508062638-b5e409988931
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli v1.22.9
 )
