@@ -132,7 +132,7 @@ func getAddressesMap(addresses []string) (map[string]string, error) {
 		return nil, errNoSubscribedAddresses
 	}
 
-	pubKeyConv, err := pubkeyConverter.NewBech32PubkeyConverter(addressLen, core.DefaultAddressPrefix)
+	pubKeyConv, err := pubkeyConverter.NewBech32PubkeyConverter(addressLen, core.OneAddressPrefix)
 	if err != nil {
 		return nil, err
 	}
