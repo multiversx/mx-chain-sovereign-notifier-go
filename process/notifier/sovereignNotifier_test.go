@@ -3,6 +3,7 @@ package notifier
 import (
 	"encoding/json"
 	"errors"
+	"math/big"
 	"strings"
 	"sync"
 	"testing"
@@ -12,11 +13,13 @@ import (
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/data/sovereign"
+	"github.com/multiversx/mx-chain-core-go/data/sovereign/dto"
 	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	"github.com/multiversx/mx-chain-core-go/hashing/sha256"
 	"github.com/multiversx/mx-chain-core-go/marshal"
-	"github.com/multiversx/mx-chain-sovereign-notifier-go/testscommon"
 	"github.com/stretchr/testify/require"
+
+	"github.com/multiversx/mx-chain-sovereign-notifier-go/testscommon"
 )
 
 var identifier = []byte("deposit")
@@ -135,8 +138,15 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 		Header:            &block.Header{},
 		ScheduledRootHash: []byte("root hash"),
 	}
+
+	args := createArgs()
+	headerBytes, err := args.Marshaller.Marshal(headerV2)
+	require.Nil(t, err)
+
 	incomingHeader := &sovereign.IncomingHeader{
-		Header: headerV2,
+		Proof:         headerBytes,
+		SourceChainID: dto.MVX,
+		Nonce:         big.NewInt(int64(headerV2.GetRound())),
 		IncomingEvents: []*transaction.Event{
 			{
 				Address:    addr1,
@@ -161,7 +171,6 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 		},
 	}
 
-	args := createArgs()
 	args.SubscribedEvents = []SubscribedEvent{
 		{
 			Identifier: identifier,
@@ -205,9 +214,6 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	sn, _ := NewSovereignNotifier(args)
 	_ = sn.RegisterHandler(handler1)
 	_ = sn.RegisterHandler(handler2)
-
-	headerBytes, err := args.Marshaller.Marshal(headerV2)
-	require.Nil(t, err)
 
 	outportBlock := &outport.OutportBlock{
 		BlockData: &outport.BlockData{
@@ -415,11 +421,20 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 
 	addr1 := []byte("addr1")
 	headerV2 := &block.HeaderV2{
-		Header:            &block.Header{},
+		Header: &block.Header{
+			Round: 4,
+		},
 		ScheduledRootHash: []byte("root hash"),
 	}
+
+	args := createArgs()
+	headerBytes, err := args.Marshaller.Marshal(headerV2)
+	require.Nil(t, err)
+
 	incomingHeader := &sovereign.IncomingHeader{
-		Header: headerV2,
+		Proof:         headerBytes,
+		SourceChainID: dto.MVX,
+		Nonce:         big.NewInt(int64(headerV2.GetRound())),
 		IncomingEvents: []*transaction.Event{
 			{
 				Address:    addr1,
@@ -428,7 +443,6 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 		},
 	}
 
-	args := createArgs()
 	args.SubscribedEvents = []SubscribedEvent{
 		{
 			Identifier: identifier,
@@ -442,9 +456,6 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 	require.Nil(t, err)
 
 	sn, _ := NewSovereignNotifier(args)
-
-	headerBytes, err := args.Marshaller.Marshal(headerV2)
-	require.Nil(t, err)
 
 	outportBlock := &outport.OutportBlock{
 		BlockData: &outport.BlockData{
