@@ -2,9 +2,10 @@ package config
 
 // Config holds notifier configuration
 type Config struct {
-	SubscribedEvents []SubscribedEvent `toml:"subscribed_events"`
-	HasherType       string            `toml:"hasher_type"`
-	WebSocketConfig  WebSocketConfig   `toml:"web_socket"`
+	SubscribedEvents       []SubscribedEvent `toml:"subscribed_events"`
+	HasherType             string            `toml:"hasher_type"`
+	WebSocketConfig        WebSocketConfig   `toml:"web_socket"`
+	AddressPubKeyConverter PubkeyConfig      `toml:"address_pubkey_converter"`
 }
 
 // SubscribedEvent holds subscribed events config
@@ -23,4 +24,10 @@ type WebSocketConfig struct {
 	BlockingAckOnError bool   `toml:"blocking_ack_on_error"`
 	AcknowledgeTimeout int    `toml:"acknowledge_timeout"`
 	Version            uint32 `toml:"version"`
+}
+
+// PubkeyConfig will map the public key configuration
+type PubkeyConfig struct {
+	Length int
+	Hrp    string
 }

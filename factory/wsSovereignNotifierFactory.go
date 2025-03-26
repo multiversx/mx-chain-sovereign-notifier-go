@@ -11,6 +11,7 @@ import (
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	"github.com/multiversx/mx-chain-core-go/marshal/factory"
 	logger "github.com/multiversx/mx-chain-logger-go"
+
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/config"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process/indexer"
@@ -25,9 +26,10 @@ var log = logger.GetOrCreate("ws-sovereign-notifier")
 
 // ArgsCreateSovereignNotifier is a struct placeholder for sovereign notifier args
 type ArgsCreateSovereignNotifier struct {
-	MarshallerType   string
-	HasherType       string
-	SubscribedEvents []config.SubscribedEvent
+	MarshallerType         string
+	HasherType             string
+	SubscribedEvents       []config.SubscribedEvent
+	AddressPubkeyConverter core.PubkeyConverter
 }
 
 // CreateSovereignNotifier creates a sovereign notifier which will notify subscribed handlers about incoming headers
@@ -42,7 +44,7 @@ func CreateSovereignNotifier(args ArgsCreateSovereignNotifier) (process.Sovereig
 		return nil, err
 	}
 
-	subscribedEvents, err := getSubscribedEvents(args.SubscribedEvents)
+	subscribedEvents, err := getSubscribedEvents(args.SubscribedEvents, args.AddressPubkeyConverter)
 	if err != nil {
 		return nil, err
 	}
@@ -94,10 +96,16 @@ func CreateWsClientReceiverNotifier(args ArgsWsClientReceiverNotifier) (process.
 
 // CreateWsSovereignNotifier will create a ws sovereign shard notifier
 func CreateWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
+	addressPubkeyConverter, err := pubkeyConverter.NewBech32PubkeyConverter(cfg.AddressPubKeyConverter.Length, cfg.AddressPubKeyConverter.Hrp)
+	if err != nil {
+		return nil, err
+	}
+
 	sovereignNotifier, err := CreateSovereignNotifier(ArgsCreateSovereignNotifier{
-		MarshallerType:   cfg.WebSocketConfig.MarshallerType,
-		SubscribedEvents: cfg.SubscribedEvents,
-		HasherType:       cfg.HasherType,
+		MarshallerType:         cfg.WebSocketConfig.MarshallerType,
+		SubscribedEvents:       cfg.SubscribedEvents,
+		HasherType:             cfg.HasherType,
+		AddressPubkeyConverter: addressPubkeyConverter,
 	})
 	if err != nil {
 		return nil, err
@@ -109,10 +117,10 @@ func CreateWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
 	})
 }
 
-func getSubscribedEvents(events []config.SubscribedEvent) ([]notifier.SubscribedEvent, error) {
+func getSubscribedEvents(events []config.SubscribedEvent, pubKeyConv core.PubkeyConverter) ([]notifier.SubscribedEvent, error) {
 	ret := make([]notifier.SubscribedEvent, len(events))
 	for idx, event := range events {
-		addressesMap, err := getAddressesMap(event.Addresses)
+		addressesMap, err := getAddressesMap(event.Addresses, pubKeyConv)
 		if err != nil {
 			return nil, fmt.Errorf("%w for event at index = %d", err, idx)
 		}
@@ -126,15 +134,10 @@ func getSubscribedEvents(events []config.SubscribedEvent) ([]notifier.Subscribed
 	return ret, nil
 }
 
-func getAddressesMap(addresses []string) (map[string]string, error) {
+func getAddressesMap(addresses []string, pubKeyConv core.PubkeyConverter) (map[string]string, error) {
 	numAddresses := len(addresses)
 	if numAddresses == 0 {
 		return nil, errNoSubscribedAddresses
-	}
-
-	pubKeyConv, err := pubkeyConverter.NewBech32PubkeyConverter(addressLen, core.DefaultAddressPrefix)
-	if err != nil {
-		return nil, err
 	}
 
 	addressesMap := make(map[string]string, numAddresses)
