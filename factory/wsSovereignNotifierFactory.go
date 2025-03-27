@@ -18,10 +18,6 @@ import (
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process/notifier"
 )
 
-const (
-	addressLen = 32
-)
-
 var log = logger.GetOrCreate("ws-sovereign-notifier")
 
 // ArgsCreateSovereignNotifier is a struct placeholder for sovereign notifier args
