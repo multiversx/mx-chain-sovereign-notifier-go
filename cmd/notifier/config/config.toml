@@ -22,3 +22,7 @@ hasher_type = "blake2b"
     acknowledge_timeout = 60
     # Payload version to process
     version = 1
+
+[address_pubkey_converter]
+    length = 32
+    hrp = "erd"
