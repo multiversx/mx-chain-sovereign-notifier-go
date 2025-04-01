@@ -2,10 +2,10 @@ package config
 
 // Config holds notifier configuration
 type Config struct {
-	SubscribedEvents       []SubscribedEvent `toml:"subscribed_events"`
-	HasherType             string            `toml:"hasher_type"`
-	WebSocketConfig        WebSocketConfig   `toml:"web_socket"`
-	AddressPubKeyConverter PubkeyConfig      `toml:"address_pubkey_converter"`
+	SubscribedEvents    []SubscribedEvent `toml:"subscribed_events"`
+	HasherType          string            `toml:"hasher_type"`
+	WebSocketConfig     WebSocketConfig   `toml:"web_socket"`
+	AddressPubKeyConfig PubkeyConfig      `toml:"address_pubkey_converter"`
 }
 
 // SubscribedEvent holds subscribed events config

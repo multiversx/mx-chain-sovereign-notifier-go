@@ -92,7 +92,7 @@ func CreateWsClientReceiverNotifier(args ArgsWsClientReceiverNotifier) (process.
 
 // CreateWsSovereignNotifier will create a ws sovereign shard notifier
 func CreateWsSovereignNotifier(cfg config.Config) (process.WSClient, error) {
-	addressPubkeyConverter, err := pubkeyConverter.NewBech32PubkeyConverter(cfg.AddressPubKeyConverter.Length, cfg.AddressPubKeyConverter.Hrp)
+	addressPubkeyConverter, err := pubkeyConverter.NewBech32PubkeyConverter(cfg.AddressPubKeyConfig.Length, cfg.AddressPubKeyConfig.Hrp)
 	if err != nil {
 		return nil, err
 	}
