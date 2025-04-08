@@ -3,16 +3,19 @@ package notifier
 import (
 	"bytes"
 	"fmt"
+	"math/big"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/data/sovereign"
+	"github.com/multiversx/mx-chain-core-go/data/sovereign/dto"
 	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	"github.com/multiversx/mx-chain-core-go/hashing"
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	logger "github.com/multiversx/mx-chain-logger-go"
+
 	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 )
 
@@ -114,7 +117,9 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 	}
 
 	extendedHeader := &sovereign.IncomingHeader{
-		Header:         headerV2,
+		Proof:          outportBlock.BlockData.HeaderBytes,
+		SourceChainID:  dto.MVX,
+		Nonce:          big.NewInt(int64(headerV2.GetRound())),
 		IncomingEvents: notifier.createIncomingEvents(outportBlock.TransactionPool.Logs),
 	}
 
