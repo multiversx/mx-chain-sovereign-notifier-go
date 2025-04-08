@@ -4,10 +4,12 @@ replace github.com/multiversx/mx-chain-core-go => github.com/multiversx/mx-chain
 
 go 1.20
 
+replace github.com/multiversx/mx-chain-core-go => github.com/multiversx/mx-chain-core-sovereign-go v1.0.0-sov
+
 require (
-	github.com/multiversx/mx-chain-communication-go v1.0.8
-	github.com/multiversx/mx-chain-core-go v1.2.17-0.20230926120741-c4caa1905d97
-	github.com/multiversx/mx-chain-logger-go v1.0.13
+	github.com/multiversx/mx-chain-communication-go v1.1.1
+	github.com/multiversx/mx-chain-core-go v1.2.21
+	github.com/multiversx/mx-chain-logger-go v1.0.15
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli v1.22.9
 )
