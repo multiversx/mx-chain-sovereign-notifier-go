@@ -4,8 +4,6 @@ replace github.com/multiversx/mx-chain-core-go => github.com/multiversx/mx-chain
 
 go 1.20
 
-replace github.com/multiversx/mx-chain-core-go => github.com/multiversx/mx-chain-core-sovereign-go v1.0.0-sov
-
 require (
 	github.com/multiversx/mx-chain-communication-go v1.1.1
 	github.com/multiversx/mx-chain-core-go v1.2.21
