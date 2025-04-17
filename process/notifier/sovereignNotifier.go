@@ -3,7 +3,6 @@ package notifier
 import (
 	"bytes"
 	"fmt"
-	"math/big"
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
@@ -119,7 +118,7 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 	extendedHeader := &sovereign.IncomingHeader{
 		Proof:          outportBlock.BlockData.HeaderBytes,
 		SourceChainID:  dto.MVX,
-		Nonce:          big.NewInt(int64(headerV2.GetRound())),
+		Nonce:          headerV2.GetRound(),
 		IncomingEvents: notifier.createIncomingEvents(outportBlock.TransactionPool.Logs),
 	}
 

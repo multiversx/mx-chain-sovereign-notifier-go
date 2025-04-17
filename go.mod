@@ -1,6 +1,6 @@
 module github.com/multiversx/mx-chain-sovereign-notifier-go
 
-replace github.com/multiversx/mx-chain-core-go => github.com/multiversx/mx-chain-core-sovereign-go v1.2.25-0.20250325130025-db27cd0983ff
+replace github.com/multiversx/mx-chain-core-go => github.com/multiversx/mx-chain-core-sovereign-go v1.2.25-0.20250415123724-6e778f55ccd3
 
 go 1.20
 

@@ -3,7 +3,6 @@ package notifier
 import (
 	"encoding/json"
 	"errors"
-	"math/big"
 	"strings"
 	"sync"
 	"testing"
@@ -146,7 +145,7 @@ func TestSovereignNotifier_Notify(t *testing.T) {
 	incomingHeader := &sovereign.IncomingHeader{
 		Proof:         headerBytes,
 		SourceChainID: dto.MVX,
-		Nonce:         big.NewInt(int64(headerV2.GetRound())),
+		Nonce:         headerV2.GetRound(),
 		IncomingEvents: []*transaction.Event{
 			{
 				Address:    addr1,
@@ -434,7 +433,7 @@ func TestSovereignNotifier_ConcurrentOperations(t *testing.T) {
 	incomingHeader := &sovereign.IncomingHeader{
 		Proof:         headerBytes,
 		SourceChainID: dto.MVX,
-		Nonce:         big.NewInt(int64(headerV2.GetRound())),
+		Nonce:         headerV2.GetRound(),
 		IncomingEvents: []*transaction.Event{
 			{
 				Address:    addr1,
