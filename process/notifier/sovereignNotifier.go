@@ -15,8 +15,6 @@ import (
 	"github.com/multiversx/mx-chain-core-go/hashing"
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	logger "github.com/multiversx/mx-chain-logger-go"
-
-	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 )
 
 var log = logger.GetOrCreate("notifier-sovereign-process")
@@ -204,7 +202,7 @@ func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, heade
 }
 
 // RegisterHandler will register an extended header handler to be notified about incoming headers and miniblocks
-func (notifier *sovereignNotifier) RegisterHandler(handler process.IncomingHeaderSubscriber) error {
+func (notifier *sovereignNotifier) RegisterHandler(handler sovCore.IncomingHeaderSubscriber) error {
 	return notifier.headersNotifier.RegisterSubscriber(handler)
 }
 

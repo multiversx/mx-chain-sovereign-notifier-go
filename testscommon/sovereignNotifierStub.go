@@ -1,14 +1,14 @@
 package testscommon
 
 import (
+	"github.com/multiversx/mx-chain-core-go/core/sovereign"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
-	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 )
 
 // SovereignNotifierStub -
 type SovereignNotifierStub struct {
 	NotifyCalled          func(finalizedBlock *outport.OutportBlock) error
-	RegisterHandlerCalled func(handler process.IncomingHeaderSubscriber) error
+	RegisterHandlerCalled func(handler sovereign.IncomingHeaderSubscriber) error
 }
 
 // Notify -
@@ -21,7 +21,7 @@ func (sn *SovereignNotifierStub) Notify(finalizedBlock *outport.OutportBlock) er
 }
 
 // RegisterHandler -
-func (sn *SovereignNotifierStub) RegisterHandler(handler process.IncomingHeaderSubscriber) error {
+func (sn *SovereignNotifierStub) RegisterHandler(handler sovereign.IncomingHeaderSubscriber) error {
 	if sn.RegisterHandlerCalled != nil {
 		return sn.RegisterHandlerCalled(handler)
 	}
