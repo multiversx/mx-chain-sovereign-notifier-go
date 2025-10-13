@@ -6,14 +6,15 @@ import (
 
 	"github.com/multiversx/mx-chain-core-go/core"
 	"github.com/multiversx/mx-chain-core-go/core/check"
+	sovCore "github.com/multiversx/mx-chain-core-go/core/sovereign"
 	"github.com/multiversx/mx-chain-core-go/data/block"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
 	"github.com/multiversx/mx-chain-core-go/data/sovereign"
+	"github.com/multiversx/mx-chain-core-go/data/sovereign/dto"
 	"github.com/multiversx/mx-chain-core-go/data/transaction"
 	"github.com/multiversx/mx-chain-core-go/hashing"
 	"github.com/multiversx/mx-chain-core-go/marshal"
 	logger "github.com/multiversx/mx-chain-logger-go"
-	"github.com/multiversx/mx-chain-sovereign-notifier-go/process"
 )
 
 var log = logger.GetOrCreate("notifier-sovereign-process")
@@ -32,7 +33,7 @@ type ArgsSovereignNotifier struct {
 }
 
 type sovereignNotifier struct {
-	headersNotifier  *headersNotifier
+	headersNotifier  IncomingHeadersNotifierHandler
 	subscribedEvents []SubscribedEvent
 	headerV2Creator  block.EmptyBlockCreator
 	marshaller       marshal.Marshalizer
@@ -52,9 +53,14 @@ func NewSovereignNotifier(args ArgsSovereignNotifier) (*sovereignNotifier, error
 		return nil, err
 	}
 
+	hn, err := sovCore.NewHeadersNotifier(args.Marshaller, args.Hasher)
+	if err != nil {
+		return nil, err
+	}
+
 	return &sovereignNotifier{
 		subscribedEvents: args.SubscribedEvents,
-		headersNotifier:  newHeadersNotifier(),
+		headersNotifier:  hn,
 		headerV2Creator:  block.NewEmptyHeaderV2Creator(),
 		marshaller:       args.Marshaller,
 		hasher:           args.Hasher,
@@ -113,17 +119,14 @@ func (notifier *sovereignNotifier) Notify(outportBlock *outport.OutportBlock) er
 		return err
 	}
 
-	extendedHeader := &sovereign.IncomingHeader{
-		Header:         headerV2,
+	incomingHeader := &sovereign.IncomingHeader{
+		Proof:          outportBlock.BlockData.HeaderBytes,
+		SourceChainID:  dto.MVX,
+		Nonce:          headerV2.GetRound(),
 		IncomingEvents: notifier.createIncomingEvents(outportBlock.TransactionPool.Logs),
 	}
 
-	headerHash, err := core.CalculateHash(notifier.marshaller, notifier.hasher, extendedHeader)
-	if err != nil {
-		return err
-	}
-
-	return notifier.headersNotifier.notifyHeaderSubscribers(extendedHeader, headerHash)
+	return notifier.headersNotifier.NotifyHeaderSubscribers(incomingHeader)
 }
 
 func checkNilOutportBlockFields(outportBlock *outport.OutportBlock) error {
@@ -199,8 +202,8 @@ func (notifier *sovereignNotifier) getHeaderV2(headerType core.HeaderType, heade
 }
 
 // RegisterHandler will register an extended header handler to be notified about incoming headers and miniblocks
-func (notifier *sovereignNotifier) RegisterHandler(handler process.IncomingHeaderSubscriber) error {
-	return notifier.headersNotifier.registerSubscriber(handler)
+func (notifier *sovereignNotifier) RegisterHandler(handler sovCore.IncomingHeaderSubscriber) error {
+	return notifier.headersNotifier.RegisterSubscriber(handler)
 }
 
 // IsInterfaceNil checks if the underlying pointer is nil

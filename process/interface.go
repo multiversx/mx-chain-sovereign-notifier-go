@@ -1,26 +1,20 @@
 package process
 
 import (
+	coreSov "github.com/multiversx/mx-chain-core-go/core/sovereign"
 	"github.com/multiversx/mx-chain-core-go/data/outport"
-	"github.com/multiversx/mx-chain-core-go/data/sovereign"
 )
 
 // SovereignNotifier defines what a sovereign notifier should do
 type SovereignNotifier interface {
 	Notify(finalizedBlock *outport.OutportBlock) error
-	RegisterHandler(handler IncomingHeaderSubscriber) error
+	RegisterHandler(handler coreSov.IncomingHeaderSubscriber) error
 	IsInterfaceNil() bool
 }
 
 // ShardCoordinator should be able to compute an address' shard id
 type ShardCoordinator interface {
 	ComputeId(address []byte) uint32
-	IsInterfaceNil() bool
-}
-
-// IncomingHeaderSubscriber defines a subscriber to incoming headers
-type IncomingHeaderSubscriber interface {
-	AddHeader(headerHash []byte, header sovereign.IncomingHeaderHandler) error
 	IsInterfaceNil() bool
 }
 
