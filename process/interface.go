@@ -32,6 +32,5 @@ type WSClient interface {
 // Indexer should handle node indexer events
 type Indexer interface {
 	SaveBlock(outportBlock *outport.OutportBlock) error
-	FinalizedBlock(finalizedBlock *outport.FinalizedBlock) error
 	IsInterfaceNil() bool
 }
