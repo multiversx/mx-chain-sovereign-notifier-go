@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/multiversx/mx-chain-core-go/data/outport"
-	"github.com/multiversx/mx-chain-sovereign-notifier-go/testscommon"
 	"github.com/stretchr/testify/require"
+
+	"github.com/multiversx/mx-chain-sovereign-notifier-go/testscommon"
 )
 
 func TestNewOperationHandler(t *testing.T) {
@@ -65,31 +66,6 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 		require.NotNil(t, err)
 	})
 
-	t.Run("finalized block", func(t *testing.T) {
-		t.Parallel()
-
-		block := &outport.FinalizedBlock{HeaderHash: []byte("hash")}
-		blockBytes, _ := marshaller.Marshal(block)
-		finalizedBlockCalled := false
-
-		indexerStub := &testscommon.IndexerStub{
-			FinalizedBlockCalled: func(finalizedBlock *outport.FinalizedBlock) error {
-				finalizedBlockCalled = true
-				require.Equal(t, block, finalizedBlock)
-				return nil
-			},
-		}
-
-		payloadProc, _ := NewPayloadProcessor(indexerStub, marshaller)
-
-		err := payloadProc.ProcessPayload(blockBytes, outport.TopicFinalizedBlock, 0)
-		require.True(t, finalizedBlockCalled)
-		require.Nil(t, err)
-
-		err = payloadProc.ProcessPayload([]byte("invalid bytes"), outport.TopicFinalizedBlock, 0)
-		require.NotNil(t, err)
-	})
-
 	t.Run("no operation handlers", func(t *testing.T) {
 		t.Parallel()
 
@@ -108,6 +84,9 @@ func TestOperationHandler_GetOperationHandler(t *testing.T) {
 		require.Nil(t, err)
 
 		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicSaveAccounts, 0)
+		require.Nil(t, err)
+
+		err = payloadProc.ProcessPayload([]byte("payload"), outport.TopicFinalizedBlock, 0)
 		require.Nil(t, err)
 	})
 

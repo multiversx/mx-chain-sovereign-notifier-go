@@ -39,7 +39,7 @@ func NewPayloadProcessor(indexer process.Indexer, marshaller marshal.Marshalizer
 		outport.TopicSaveValidatorsRating:  noOpHandler,
 		outport.TopicSaveValidatorsPubKeys: noOpHandler,
 		outport.TopicSaveAccounts:          noOpHandler,
-		outport.TopicFinalizedBlock:        opHandler.finalizedBlock,
+		outport.TopicFinalizedBlock:        noOpHandler,
 	}
 
 	return opHandler, nil
@@ -67,16 +67,6 @@ func (pp *payloadProcessor) saveBlock(marshalledData []byte) error {
 
 func noOpHandler(_ []byte) error {
 	return nil
-}
-
-func (pp *payloadProcessor) finalizedBlock(marshalledData []byte) error {
-	finalizedBlock := &outport.FinalizedBlock{}
-	err := pp.marshaller.Unmarshal(finalizedBlock, marshalledData)
-	if err != nil {
-		return err
-	}
-
-	return pp.indexer.FinalizedBlock(finalizedBlock)
 }
 
 // IsInterfaceNil checks if the underlying pointer is nil
